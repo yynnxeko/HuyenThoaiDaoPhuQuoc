@@ -7,10 +7,13 @@ signal fish_caught_signal(fish_id: String)
 signal zone_unlocked(zone_id: String)
 
 # Player currency
-var money: int = 0 :
+var _money: int = 0
+var money: int:
 	set(val):
-		money = val
-		money_changed.emit(money)
+		_money = val
+		money_changed.emit(_money)
+	get:
+		return _money
 
 # Caught fish: { fish_id: { "count": int, "best_size": float } }
 var caught_fish: Dictionary = {}
@@ -134,7 +137,7 @@ func _check_zone_unlocks() -> void:
 		zone_unlocked.emit("deep_sea")
 
 
-func register_catch(fish_id: String, size: float, sell_price: int) -> void:
+func register_catch(fish_id: String, size: float, _sell_price: int) -> void:
 	total_fish_caught += 1
 	if fish_id in caught_fish:
 		caught_fish[fish_id]["count"] += 1

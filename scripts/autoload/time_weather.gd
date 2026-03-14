@@ -57,6 +57,8 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	var was_full_moon := is_full_moon()
+
 	# Advance game time
 	game_hour += (GAME_MINUTES_PER_REAL_SECOND * delta) / 60.0
 	if game_hour >= 24.0:
@@ -65,6 +67,8 @@ func _process(delta: float) -> void:
 		moon_cycle_day = (moon_cycle_day + 1) % MOON_CYCLE_LENGTH
 		if is_full_moon():
 			full_moon_started.emit()
+		elif was_full_moon:
+			full_moon_ended.emit()
 	
 	time_changed.emit(game_hour)
 	_update_period()

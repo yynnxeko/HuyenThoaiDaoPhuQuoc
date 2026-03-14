@@ -1,12 +1,237 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/main_menu.gd" id="1_menu"]
+[ext_resource type="Shader" path="res://shaders/ocean_3d.gdshader" id="2_ocean"]
+[ext_resource type="Script" path="res://scripts/game/boat.gd" id="3_boat"]
 
-[node name="MainMenu" type="Control"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ocean"]
+shader = ExtResource("2_ocean")
+shader_parameter/shallow_color = Color(0.1, 0.6, 0.7, 0.85)
+shader_parameter/deep_color = Color(0.02, 0.15, 0.35, 0.95)
+shader_parameter/foam_color = Color(0.9, 0.95, 1.0, 0.6)
+shader_parameter/wave_speed = 1.0
+shader_parameter/wave_height = 0.35
+shader_parameter/wave_frequency = 2.0
+shader_parameter/foam_amount = 0.3
+shader_parameter/time_scale = 1.0
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_ocean"]
+size = Vector2(250, 40)
+subdivide_width = 120
+subdivide_depth = 30
+
+[sub_resource type="ProceduralSkyMaterial" id="SkyMat_1"]
+sky_top_color = Color(0.3, 0.55, 0.9, 1)
+sky_horizon_color = Color(0.75, 0.82, 0.95, 1)
+ground_bottom_color = Color(0.02, 0.1, 0.25, 1)
+ground_horizon_color = Color(0.15, 0.3, 0.5, 1)
+sun_angle_max = 30.0
+
+[sub_resource type="Sky" id="Sky_1"]
+sky_material = SubResource("SkyMat_1")
+
+[sub_resource type="Environment" id="Environment_1"]
+background_mode = 2
+sky = SubResource("Sky_1")
+tonemap_mode = 2
+ssao_enabled = true
+glow_enabled = true
+glow_intensity = 0.4
+fog_enabled = true
+fog_light_color = Color(0.6, 0.75, 0.9, 1)
+fog_density = 0.002
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_n"]
+bg_color = Color(0.1, 0.15, 0.25, 0.7)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.5, 0.6, 0.7, 0.5)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_h"]
+bg_color = Color(0.15, 0.25, 0.4, 0.8)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.85, 0.3, 0.8)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+shadow_color = Color(1, 0.85, 0.3, 0.2)
+shadow_size = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_p"]
+bg_color = Color(0.05, 0.1, 0.2, 0.9)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.85, 0.3, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="Theme" id="Theme_menu"]
+Button/styles/normal = SubResource("StyleBoxFlat_btn_n")
+Button/styles/hover = SubResource("StyleBoxFlat_btn_h")
+Button/styles/pressed = SubResource("StyleBoxFlat_btn_p")
+
+[node name="MainMenu" type="Node3D"]
+script = ExtResource("1_menu")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_1")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.866, 0.5, 0, -0.5, 0.866, 0, 20, 10)
+light_color = Color(1, 0.95, 0.85, 1)
+light_energy = 1.0
+shadow_enabled = true
+
+[node name="OceanMesh" type="MeshInstance3D" parent="."]
+mesh = SubResource("PlaneMesh_ocean")
+material_override = SubResource("ShaderMaterial_ocean")
+
+[node name="Boat3D" type="Node3D" parent="."]
+transform = Transform3D(0.966, 0, -0.259, 0, 1, 0, 0.259, 0, 0.966, 3, 0.3, -5)
+script = ExtResource("3_boat")
+
+[node name="CameraPivot" type="Node3D" parent="."]
+
+[node name="Camera3D" type="Camera3D" parent="CameraPivot"]
+transform = Transform3D(1, 0, 0, 0, 0.966, 0.259, 0, -0.259, 0.966, 0, 5, 12)
+fov = 50.0
+
+[node name="UI" type="CanvasLayer" parent="."]
+layer = 20
+
+[node name="Control" type="Control" parent="UI"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_menu")
+theme = SubResource("Theme_menu")
+
+[node name="Vignette" type="ColorRect" parent="UI/Control"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0.05, 0.3)
+
+[node name="TitleBox" type="ColorRect" parent="UI/Control"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -400.0
+offset_top = -280.0
+offset_right = 400.0
+offset_bottom = -110.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 0.45)
+
+[node name="TitleShadow" type="Control" parent="UI/Control"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_top = -240.0
+offset_bottom = -240.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Title" type="Label" parent="UI/Control/TitleShadow"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -200.0
+offset_top = -30.0
+offset_right = 200.0
+offset_bottom = 50.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.6)
+theme_override_constants/shadow_offset_x = 3
+theme_override_constants/shadow_offset_y = 3
+theme_override_font_sizes/font_size = 56
+text = "HUYEN THOAI"
+horizontal_alignment = 1
+
+[node name="Title2" type="Label" parent="UI/Control/TitleShadow"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -200.0
+offset_top = 35.0
+offset_right = 200.0
+offset_bottom = 115.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.6)
+theme_override_constants/shadow_offset_x = 3
+theme_override_constants/shadow_offset_y = 3
+theme_override_font_sizes/font_size = 56
+text = "DAO PHU QUOC"
+horizontal_alignment = 1
+
+[node name="CenterContainer" type="CenterContainer" parent="UI/Control"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 220.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/Control/CenterContainer"]
+custom_minimum_size = Vector2(300, 0)
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="BtnStart" type="Button" parent="UI/Control/CenterContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_font_sizes/font_size = 28
+text = "GAME MOI"
+
+[node name="BtnContinue" type="Button" parent="UI/Control/CenterContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_font_sizes/font_size = 28
+text = "TIEP TUC"
+
+[node name="BtnQuit" type="Button" parent="UI/Control/CenterContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_font_sizes/font_size = 28
+text = "THOAT"

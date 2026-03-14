@@ -1,122 +1,98 @@
-extends Node2D
+extends Node3D
 
-## Main game world — manages boat navigation, fishing spots, and zone transitions
+## 3D Game World — manages boat, ocean, camera, fishing spots, zones
 
 signal return_to_menu
 
 enum GameState { NAVIGATING, FISHING, MINIGAME, UI_OPEN }
 var state: GameState = GameState.NAVIGATING
 
-# World scrolling
-var camera_x: float = 0.0
-var world_width: float = 12000.0
+# World
+var world_width: float = 200.0  # 3D units
+var camera_follow_speed: float = 3.0
 
-# Boat reference
-@onready var boat: Node2D = $Boat
-@onready var hud: Control = $HUD/HUDControl
-@onready var fishing_mode: Node2D = null
-@onready var minigame: Node2D = null
+# References (set in _ready from scene tree)
+var boat: Node3D = null
+var camera: Camera3D = null
+var hud: Control = null
+var fishing_mode_node = null
 
-# Fishing spots
+# Fishing
 var fishing_spots: Array = []
-var active_spot: Node2D = null
-
-# Water line Y position
-const WATER_LINE_Y: float = 540.0
-
-# Drawing
-var wave_time: float = 0.0
-var cloud_positions: Array = []
-
-# Fish underwater
-var underwater_fish: Array = []
 
 # Zone
 var current_zone_info = null
 
+# HUD CanvasLayer reference
+var hud_canvas: CanvasLayer = null
+
+# Fish underwater (decorative 3D)
+var fish_nodes: Array = []
+
+# Environment time
+var day_night_time: float = 0.0
+var sun_light: DirectionalLight3D = null
+var env: WorldEnvironment = null
+
 
 func _ready() -> void:
-	# Initialize clouds
-	for i in range(8):
-		cloud_positions.append({
-			"x": randf_range(0, 1920),
-			"y": randf_range(60, 200),
-			"scale": randf_range(0.4, 1.2),
-			"speed": randf_range(8.0, 25.0),
-		})
+	# Get references
+	boat = $Boat3D
+	camera = $Camera3D
+	hud_canvas = $HUD
+	hud = $HUD/HUDControl
+	sun_light = $DirectionalLight3D
+	env = $WorldEnvironment
 	
 	# Generate fishing spots
 	_generate_fishing_spots()
 	
-	# Generate some decorative fish
+	# Spawn decorative fish
 	_spawn_decorative_fish()
 	
-	# Set initial zone
-	current_zone_info = ZoneDatabase.get_zone_at_position(camera_x)
+	# Initial zone
+	current_zone_info = ZoneDatabase.get_zone_at_position(boat.position.x * 60.0)
 	
-	# Connect signal for weather changes
-	TimeWeather.weather_changed.connect(_on_weather_changed)
-	TimeWeather.period_changed.connect(_on_period_changed)
+	# Keyboard shortcut hints on HUD
+	if hud and hud.has_method("show_message"):
+		hud.show_message("A/D: Di chuyen | E: Cau ca | M: Ban do | T: Cho | U: Nang cap")
 
 
 func _process(delta: float) -> void:
-	wave_time += delta
+	if state == GameState.NAVIGATING:
+		_process_navigation(delta)
 	
-	# Move clouds
-	for cloud in cloud_positions:
-		cloud["x"] += cloud["speed"] * delta
-		if cloud["x"] > 1920 + 100:
-			cloud["x"] = -100.0
+	# Update camera to follow boat
+	_update_camera(delta)
 	
-	match state:
-		GameState.NAVIGATING:
-			_process_navigation(delta)
-		GameState.FISHING:
-			_process_fishing(delta)
+	# Update day/night cycle on sun
+	_update_lighting(delta)
 	
 	# Update decorative fish
 	_update_decorative_fish(delta)
 	
-	# Update zone
-	var new_zone = ZoneDatabase.get_zone_at_position(boat.global_position.x + camera_x)
-	if new_zone and (current_zone_info == null or new_zone.id != current_zone_info.id):
-		current_zone_info = new_zone
-		AudioManager.play_zone_enter()
-		if hud and hud.has_method("show_zone_name"):
-			hud.show_zone_name(current_zone_info.name_vn)
-	
-	queue_redraw()
+	# Zone check
+	_check_zone()
 
 
 func _process_navigation(delta: float) -> void:
-	# Boat movement
-	var input_dir = 0.0
+	# Boat movement input
+	var move_input = 0.0
 	if Input.is_action_pressed("move_right"):
-		input_dir = 1.0
+		move_input = 1.0
 	elif Input.is_action_pressed("move_left"):
-		input_dir = -1.0
+		move_input = -1.0
 	
-	if input_dir != 0.0:
-		var speed = GameData.get_boat_speed()
-		boat.position.x += input_dir * speed * delta
-		boat.facing_right = input_dir > 0
+	if boat:
+		boat.move_input = move_input
+		# Clamp boat position
+		boat.position.x = clampf(boat.position.x, -world_width / 2.0, world_width / 2.0)
 	
-	# Camera follows boat
-	var target_cam_x = boat.position.x - 500.0
-	camera_x = lerp(camera_x, target_cam_x, delta * 2.0)
-	camera_x = clampf(camera_x, 0.0, world_width - 1920.0)
-	
-	# Boat bobbing
-	boat.position.y = WATER_LINE_Y - 30.0 + sin(wave_time * 1.5 + boat.position.x * 0.01) * 8.0
-	
-	# Clamp boat position
-	boat.position.x = clampf(boat.position.x, camera_x + 100, camera_x + 1820)
-	
-	# Check for fishing spot interaction
+	# Interact
 	if Input.is_action_just_pressed("interact"):
 		_check_fishing_spot()
 	
-	# Pause / Return to menu
+	# Return to menu
 	if Input.is_action_just_pressed("pause"):
 		return_to_menu.emit()
 	
@@ -139,83 +115,178 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			_open_shop()
 
 
-func _process_fishing(_delta: float) -> void:
-	pass  # Fishing mode handles itself
+func _update_camera(delta: float) -> void:
+	if camera and boat:
+		# Smooth follow boat X position
+		var target_x = boat.position.x
+		camera.position.x = lerp(camera.position.x, target_x, camera_follow_speed * delta)
+		# Keep camera Y/Z fixed (side view)
+		camera.position.y = 5.0
+		camera.position.z = 15.0
+
+
+func _update_lighting(delta: float) -> void:
+	if sun_light == null:
+		return
+	
+	var time_info = fposmod(TimeWeather.game_hour, 24.0) / 24.0  # 0.0 to 1.0
+	
+	# Sun angle based on time of day
+	var sun_angle = (time_info - 0.25) * TAU  # noon = sun overhead
+	sun_light.rotation_degrees.x = -30.0 - sin(sun_angle) * 40.0
+	
+	# Sun color based on time
+	var period = TimeWeather.get_period_name()
+	match period:
+		"dawn":
+			sun_light.light_color = Color(1.0, 0.7, 0.4)
+			sun_light.light_energy = 0.6
+		"morning":
+			sun_light.light_color = Color(1.0, 0.95, 0.85)
+			sun_light.light_energy = 1.0
+		"afternoon":
+			sun_light.light_color = Color(1.0, 0.9, 0.8)
+			sun_light.light_energy = 1.1
+		"evening":
+			sun_light.light_color = Color(1.0, 0.6, 0.3)
+			sun_light.light_energy = 0.7
+		"night":
+			sun_light.light_color = Color(0.3, 0.35, 0.6)
+			sun_light.light_energy = 0.2
+
+
+func _check_zone() -> void:
+	if boat == null:
+		return
+	# Convert 3D position to 2D zone position (scale factor)
+	var world_x = (boat.position.x + world_width / 2.0) / world_width * 12000.0
+	var new_zone = ZoneDatabase.get_zone_at_position(world_x)
+	if new_zone and (current_zone_info == null or new_zone.id != current_zone_info.id):
+		current_zone_info = new_zone
+		AudioManager.play_zone_enter()
+		if hud and hud.has_method("show_zone_name"):
+			hud.show_zone_name(current_zone_info.name_vn)
 
 
 func _generate_fishing_spots() -> void:
-	# Create fishing spots throughout the world
-	var spot_positions = [
-		300, 800, 1400, 2200, 2800, 3500, 4200, 4800, 5500,
-		6200, 6800, 7500, 8200, 8800, 9500, 10200, 10800, 11500
-	]
-	for xpos in spot_positions:
+	# Place fishing spot markers in 3D
+	var spot_x_positions = [-80, -55, -30, -10, 10, 30, 50, 70, 85]
+	for xpos in spot_x_positions:
+		var world_x_2d = (float(xpos) + world_width / 2.0) / world_width * 12000.0
 		fishing_spots.append({
-			"x": float(xpos),
-			"y": WATER_LINE_Y,
-			"zone": ZoneDatabase.get_zone_at_position(float(xpos)).id,
+			"x3d": float(xpos),
+			"x2d": world_x_2d,
+			"zone": ZoneDatabase.get_zone_at_position(world_x_2d).id,
 			"glow_time": randf() * TAU,
 		})
+		# Create visual marker (glowing sphere)
+		_create_spot_marker(Vector3(float(xpos), 0.05, 0))
+
+
+func _create_spot_marker(pos: Vector3) -> void:
+	var marker = MeshInstance3D.new()
+	var sphere = SphereMesh.new()
+	sphere.radius = 0.3
+	sphere.height = 0.6
+	marker.mesh = sphere
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(0.2, 0.8, 1.0, 0.6)
+	mat.emission_enabled = true
+	mat.emission = Color(0.2, 0.7, 1.0)
+	mat.emission_energy_multiplier = 2.0
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	marker.material_override = mat
+	marker.position = pos
+	add_child(marker)
 
 
 func _spawn_decorative_fish() -> void:
-	for i in range(15):
-		underwater_fish.append({
-			"x": randf_range(0, world_width),
-			"y": randf_range(WATER_LINE_Y + 40, 900),
-			"speed": randf_range(20, 80),
-			"direction": [-1.0, 1.0][randi() % 2],
-			"size": randf_range(8, 25),
-			"color": Color(randf_range(0.3, 0.7), randf_range(0.4, 0.8), randf_range(0.5, 0.9), 0.4),
+	for i in range(12):
+		var fish_mesh = MeshInstance3D.new()
+		var capsule = CapsuleMesh.new()
+		capsule.radius = randf_range(0.08, 0.2)
+		capsule.height = randf_range(0.4, 0.8)
+		fish_mesh.mesh = capsule
+		fish_mesh.rotation_degrees.z = 90  # Horizontal
+		
+		var mat = StandardMaterial3D.new()
+		mat.albedo_color = Color(randf_range(0.3, 0.7), randf_range(0.4, 0.8), randf_range(0.5, 0.9), 0.7)
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		fish_mesh.material_override = mat
+		
+		fish_mesh.position = Vector3(
+			randf_range(-world_width / 2.0, world_width / 2.0),
+			randf_range(-2.0, -0.5),
+			randf_range(-3.0, 3.0)
+		)
+		add_child(fish_mesh)
+		fish_nodes.append({
+			"node": fish_mesh,
+			"speed": randf_range(1.0, 4.0),
+			"dir": [-1.0, 1.0][randi() % 2],
 			"wave_offset": randf() * TAU,
 		})
 
 
 func _update_decorative_fish(delta: float) -> void:
-	for fish in underwater_fish:
-		fish["x"] += fish["speed"] * fish["direction"] * delta
-		fish["y"] += sin(wave_time * 2.0 + fish["wave_offset"]) * 0.3
-		# Wrap around
-		if fish["x"] > world_width + 100:
-			fish["x"] = -50.0
-		elif fish["x"] < -100:
-			fish["x"] = world_width + 50.0
+	for fish in fish_nodes:
+		var node: MeshInstance3D = fish["node"]
+		if node == null:
+			continue
+		node.position.x += fish["speed"] * fish["dir"] * delta
+		node.position.y = -1.0 + sin(Time.get_ticks_msec() * 0.001 + fish["wave_offset"]) * 0.3
+		# Wrap
+		if node.position.x > world_width / 2.0 + 5:
+			node.position.x = -world_width / 2.0 - 5
+		elif node.position.x < -world_width / 2.0 - 5:
+			node.position.x = world_width / 2.0 + 5
 
 
 func _check_fishing_spot() -> void:
+	if boat == null:
+		return
 	for spot in fishing_spots:
-		var dist = abs(boat.position.x + camera_x - spot["x"])
-		if dist < 100.0:
-			# Check if zone is unlocked
+		var dist = abs(boat.position.x - spot["x3d"])
+		if dist < 3.0:
 			if not GameData.is_zone_unlocked(spot["zone"]):
 				if hud and hud.has_method("show_message"):
-					hud.show_message("Cần nâng cấp thuyền để đến khu vực này!")
+					hud.show_message("Can nang cap thuyen de den khu vuc nay!")
 				return
 			_enter_fishing_mode(spot)
 			return
-	
-	# No spot nearby — show hint
 	if hud and hud.has_method("show_message"):
-		hud.show_message("Không có điểm câu cá gần đây. Tìm các điểm sáng trên mặt nước!")
+		hud.show_message("Khong co diem cau ca gan day. Tim cac diem sang tren mat nuoc!")
 
 
 func _enter_fishing_mode(spot: Dictionary) -> void:
 	state = GameState.FISHING
-	# Load fishing mode scene
 	var fishing_scene = load("res://scenes/game/fishing_mode.tscn")
 	if fishing_scene:
-		fishing_mode = fishing_scene.instantiate()
-		fishing_mode.setup(spot, current_zone_info, boat)
-		fishing_mode.fishing_ended.connect(_on_fishing_ended)
-		fishing_mode.fish_caught.connect(_on_fish_caught)
-		add_child(fishing_mode)
+		fishing_mode_node = fishing_scene.instantiate()
+		# Convert 3D spot to 2D data for fishing mode (fishing UI stays 2D overlay)
+		var spot_2d = {
+			"x": spot["x2d"],
+			"y": 540.0,
+			"zone": spot["zone"],
+			"glow_time": spot["glow_time"],
+		}
+		fishing_mode_node.setup(spot_2d, current_zone_info, null)
+		fishing_mode_node.fishing_ended.connect(_on_fishing_ended)
+		fishing_mode_node.fish_caught.connect(_on_fish_caught)
+		# Add to a CanvasLayer so it overlays the 3D view
+		var overlay = CanvasLayer.new()
+		overlay.layer = 10
+		overlay.name = "FishingOverlay"
+		overlay.add_child(fishing_mode_node)
+		add_child(overlay)
 
 
 func _on_fishing_ended() -> void:
 	state = GameState.NAVIGATING
-	if fishing_mode:
-		fishing_mode.queue_free()
-		fishing_mode = null
+	var overlay = get_node_or_null("FishingOverlay")
+	if overlay:
+		overlay.queue_free()
+	fishing_mode_node = null
 
 
 func _on_fish_caught(fish_id: String, size: float) -> void:
@@ -236,6 +307,7 @@ func _on_period_changed(period_name: String) -> void:
 		hud.update_time_period(period_name)
 
 
+# ============ UI SCREENS ============
 
 func _open_map() -> void:
 	if state == GameState.UI_OPEN:
@@ -303,186 +375,14 @@ func _open_shop() -> void:
 
 
 func _on_zone_selected(zone_id: String) -> void:
+	if not GameData.is_zone_unlocked(zone_id):
+		if hud and hud.has_method("show_message"):
+			hud.show_message("Chua mo khoa khu vuc nay!")
+		return
 	var zone = ZoneDatabase.get_zone_by_id(zone_id)
-	if zone:
-		GameData.current_zone = zone_id
-		# Move boat to zone start
-		boat.position.x = zone.world_x_start + 200.0
-		camera_x = zone.world_x_start
+	if zone and boat:
+		# Teleport boat to zone center in 3D
+		var zone_center_2d = (zone.world_x_start + zone.world_x_end) / 2.0
+		var x_3d = (zone_center_2d / 12000.0) * world_width - world_width / 2.0
+		boat.position.x = x_3d
 		current_zone_info = zone
-		if hud and hud.has_method("show_zone_name"):
-			hud.show_zone_name(zone.name_vn)
-
-
-func _draw() -> void:
-	var screen_w = 1920.0
-	var screen_h = 1080.0
-	
-	# === SKY ===
-	var sky_top = TimeWeather.get_sky_top_color()
-	var sky_bottom = TimeWeather.get_sky_bottom_color()
-	for i in range(int(WATER_LINE_Y)):
-		var t = float(i) / WATER_LINE_Y
-		draw_line(Vector2(0, i), Vector2(screen_w, i), sky_top.lerp(sky_bottom, t))
-	
-	# === SUN / MOON ===
-	var sun_norm = TimeWeather.get_sun_position_normalized()
-	if sun_norm > 0.0:
-		var sun_x = 300.0 + sun_norm * 400.0
-		var sun_y = WATER_LINE_Y - sun_norm * 350.0
-		# Glow
-		for r in range(60, 0, -2):
-			draw_circle(Vector2(sun_x, sun_y), float(r), Color(1.0, 0.9, 0.5, 0.015))
-		draw_circle(Vector2(sun_x, sun_y), 30.0, Color(1.0, 0.95, 0.7, 0.9))
-	elif TimeWeather.current_period == TimeWeather.TimePeriod.NIGHT:
-		# Moon
-		var moon_brightness = 0.6 if TimeWeather.is_full_moon() else 0.3
-		draw_circle(Vector2(1400, 120), 25.0, Color(0.9, 0.9, 1.0, moon_brightness))
-		if TimeWeather.is_full_moon():
-			for r in range(40, 0, -2):
-				draw_circle(Vector2(1400, 120), float(r), Color(0.8, 0.85, 1.0, 0.01))
-	
-	# === CLOUDS ===
-	for cloud in cloud_positions:
-		_draw_cloud(Vector2(cloud["x"], cloud["y"]), cloud["scale"])
-	
-	# === DISTANT ISLANDS (parallax) ===
-	var parallax_offset = camera_x * 0.1
-	_draw_island(Vector2(800.0 - parallax_offset, WATER_LINE_Y), 250.0, 70.0, 0.3)
-	_draw_island(Vector2(1500.0 - parallax_offset, WATER_LINE_Y), 180.0, 50.0, 0.25)
-	_draw_island(Vector2(2200.0 - parallax_offset * 0.5, WATER_LINE_Y), 300.0, 90.0, 0.2)
-	
-	# === WATER ===
-	var water_color = TimeWeather.get_water_color()
-	for i in range(int(WATER_LINE_Y), int(screen_h)):
-		var t = float(i - int(WATER_LINE_Y)) / (screen_h - WATER_LINE_Y)
-		var col = water_color.lerp(Color(water_color.r * 0.3, water_color.g * 0.3, water_color.b * 0.4, 0.95), t)
-		var wave_off = sin(float(i) * 0.05 + wave_time * 2.0 - camera_x * 0.003) * 2.0
-		draw_line(Vector2(wave_off, i), Vector2(screen_w + wave_off, i), col)
-	
-	# === WATER SURFACE SHIMMER ===
-	var ambient = TimeWeather.get_ambient_light()
-	for x_i in range(0, int(screen_w), 35):
-		var world_x_pos = float(x_i) + camera_x
-		var shimmer_y = WATER_LINE_Y + sin(world_x_pos * 0.015 + wave_time * 1.5) * 4.0
-		var shimmer_a = (0.1 + 0.08 * sin(world_x_pos * 0.03 + wave_time * 3.0)) * ambient
-		draw_line(Vector2(float(x_i), shimmer_y), Vector2(float(x_i) + 25.0, shimmer_y),
-			Color(1.0, 0.95, 0.8, shimmer_a), 1.5)
-	
-	# === UNDERWATER CORAL ===
-	_draw_corals(camera_x)
-	
-	# === DECORATIVE FISH ===
-	for fish in underwater_fish:
-		var screen_x = fish["x"] - camera_x
-		if screen_x > -50 and screen_x < screen_w + 50:
-			_draw_fish_shape(Vector2(screen_x, fish["y"]), fish["size"], fish["color"], fish["direction"])
-	
-	# === FISHING SPOTS ===
-	for spot in fishing_spots:
-		var screen_x = spot["x"] - camera_x
-		if screen_x > -50 and screen_x < screen_w + 50:
-			spot["glow_time"] += 0.02
-			var glow = 0.3 + 0.2 * sin(spot["glow_time"])
-			# Glowing circle on water
-			draw_circle(Vector2(screen_x, spot["y"]), 15.0, Color(0.3, 0.9, 1.0, glow * 0.3))
-			draw_circle(Vector2(screen_x, spot["y"]), 8.0, Color(0.5, 1.0, 1.0, glow * 0.5))
-			draw_circle(Vector2(screen_x, spot["y"]), 3.0, Color(0.8, 1.0, 1.0, glow))
-	
-	# === WEATHER EFFECTS ===
-	if TimeWeather.current_weather == TimeWeather.Weather.RAIN or TimeWeather.current_weather == TimeWeather.Weather.STORM:
-		_draw_rain()
-	if TimeWeather.current_weather == TimeWeather.Weather.STORM:
-		_draw_storm_overlay()
-
-
-func _draw_cloud(pos: Vector2, scale: float) -> void:
-	var alpha = 0.2 * TimeWeather.get_ambient_light()
-	var col = Color(1.0, 0.97, 0.92, alpha)
-	draw_circle(pos, 28.0 * scale, col)
-	draw_circle(pos + Vector2(22, -8) * scale, 22.0 * scale, col)
-	draw_circle(pos + Vector2(-18, -4) * scale, 20.0 * scale, col)
-	draw_circle(pos + Vector2(8, 7) * scale, 18.0 * scale, col)
-
-
-func _draw_island(pos: Vector2, width: float, height: float, alpha: float) -> void:
-	var points = PackedVector2Array()
-	for i in range(21):
-		var t = float(i) / 20.0
-		var x = pos.x - width / 2.0 + t * width
-		var y = pos.y - sin(t * PI) * height + sin(t * PI * 3.0) * height * 0.12
-		points.append(Vector2(x, y))
-	points.append(Vector2(pos.x + width / 2.0, pos.y))
-	points.append(Vector2(pos.x - width / 2.0, pos.y))
-	if points.size() >= 3:
-		draw_colored_polygon(points, Color(0.1, 0.15, 0.2, alpha))
-
-
-func _draw_corals(cam_x: float) -> void:
-	var coral_colors = [
-		Color(0.8, 0.3, 0.4, 0.3),
-		Color(0.9, 0.6, 0.2, 0.3),
-		Color(0.3, 0.7, 0.5, 0.3),
-		Color(0.5, 0.3, 0.8, 0.25),
-	]
-	# Draw coral clusters at fixed world positions
-	var coral_positions_world = [500, 1200, 2500, 3200, 4100, 5000, 6000, 7000, 8500, 10000]
-	for i in range(coral_positions_world.size()):
-		var world_x = float(coral_positions_world[i])
-		var screen_x = world_x - cam_x
-		if screen_x < -100 or screen_x > 2020:
-			continue
-		var col = coral_colors[i % coral_colors.size()]
-		_draw_single_coral(Vector2(screen_x, 950), col, 20.0 + float(i % 3) * 10.0)
-		_draw_single_coral(Vector2(screen_x + 40, 970), col.lightened(0.1), 15.0 + float(i % 2) * 8.0)
-
-
-func _draw_single_coral(base: Vector2, col: Color, height: float) -> void:
-	# Simple branching coral
-	for branch in range(3):
-		var angle = -PI / 2.0 + float(branch - 1) * 0.4
-		var end = base + Vector2(cos(angle), sin(angle)) * height
-		draw_line(base, end, col, 3.0)
-		# Sub-branches
-		for sub in range(2):
-			var sub_angle = angle + float(sub - 0.5) * 0.5
-			var sub_end = end + Vector2(cos(sub_angle), sin(sub_angle)) * height * 0.4
-			draw_line(end, sub_end, col.lightened(0.15), 2.0)
-
-
-func _draw_fish_shape(pos: Vector2, size: float, col: Color, direction: float) -> void:
-	var dir = -1.0 if direction < 0 else 1.0
-	# Body
-	var body_points = PackedVector2Array([
-		pos + Vector2(-size * dir, 0),
-		pos + Vector2(-size * 0.3 * dir, -size * 0.4),
-		pos + Vector2(size * 0.5 * dir, -size * 0.2),
-		pos + Vector2(size * dir, 0),
-		pos + Vector2(size * 0.5 * dir, size * 0.2),
-		pos + Vector2(-size * 0.3 * dir, size * 0.4),
-	])
-	if body_points.size() >= 3:
-		draw_colored_polygon(body_points, col)
-	# Tail
-	var tail_points = PackedVector2Array([
-		pos + Vector2(-size * dir, 0),
-		pos + Vector2(-size * 1.3 * dir, -size * 0.3),
-		pos + Vector2(-size * 1.3 * dir, size * 0.3),
-	])
-	if tail_points.size() >= 3:
-		draw_colored_polygon(tail_points, col.darkened(0.15))
-	# Eye
-	draw_circle(pos + Vector2(size * 0.4 * dir, -size * 0.05), size * 0.1, Color(1, 1, 1, col.a))
-
-
-func _draw_rain() -> void:
-	var intensity = 40 if TimeWeather.current_weather == TimeWeather.Weather.STORM else 20
-	for i in range(intensity):
-		var rx = fmod(float(i) * 97.0 + wave_time * 200.0, 1920.0)
-		var ry = fmod(float(i) * 53.0 + wave_time * 400.0, 1080.0)
-		draw_line(Vector2(rx, ry), Vector2(rx - 2, ry + 15), Color(0.7, 0.75, 0.85, 0.3), 1.0)
-
-
-func _draw_storm_overlay() -> void:
-	# Dark overlay for storm
-	draw_rect(Rect2(0, 0, 1920, 1080), Color(0.05, 0.05, 0.1, 0.3))

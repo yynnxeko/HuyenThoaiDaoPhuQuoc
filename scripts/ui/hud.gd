@@ -12,6 +12,7 @@ var catch_timer: float = 0.0
 
 func _ready() -> void:
 	# Fill entire screen
+	size = Vector2(1920, 1080)
 	set_anchors_preset(PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
