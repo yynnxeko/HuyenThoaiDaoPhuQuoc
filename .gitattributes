@@ -1,0 +1,21 @@
+# Enforce stable line endings across platforms.
+* text=auto
+
+# Godot text-based project files
+*.gd text eol=lf
+*.tscn text eol=lf
+*.tres text eol=lf
+*.import text eol=lf
+*.godot text eol=lf
+*.gdshader text eol=lf
+
+# Common binary assets
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.wav binary
+*.ogg binary
+*.mp3 binary
+*.glb binary
+*.gltf binary

@@ -5,8 +5,8 @@
 # Godot-specific ignores
 *.translation
 
-# Imported textures, models, etc.
-.import/
+# Godot 4 stores import cache in .godot/.
+# Keep *.import files tracked because they store import settings.
 
 # Export templates
 export_presets.cfg
