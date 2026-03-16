@@ -8,9 +8,24 @@ signal go_to_village
 enum GameState { NAVIGATING, FISHING, MINIGAME, UI_OPEN }
 var state: GameState = GameState.NAVIGATING
 
+enum CameraMode { BOAT_THIRD_PERSON, TOP_DOWN_FISHING, BAIT_FOLLOW }
+var camera_mode: CameraMode = CameraMode.BOAT_THIRD_PERSON
+
 # World
 var world_width: float = 200.0  # 3D units
 var camera_follow_speed: float = 3.0
+var top_down_height: float = 16.0
+var top_down_offset: Vector3 = Vector3(0, 0, 0)
+var top_down_fov: float = 60.0
+var default_camera_fov: float = 50.0
+var water_level_y: float = 0.0
+var bait_max_depth_3d: float = 6.0
+var bait_camera_above: float = 6.0
+var bait_camera_below: float = -2.0
+var bait_camera_z_offset: float = 6.0
+var bait_camera_fov: float = 70.0
+var bait_x2d: float = 6000.0
+var bait_depth_ratio: float = 0.0
 
 # References (set in _ready from scene tree)
 var boat: Node3D = null
@@ -40,6 +55,8 @@ func _ready() -> void:
 	# Get references
 	boat = $Boat3D
 	camera = $Camera3D
+	if camera:
+		default_camera_fov = camera.fov
 	hud_canvas = $HUD
 	hud = $HUD/HUDControl
 	sun_light = $DirectionalLight3D
@@ -131,11 +148,28 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 func _update_camera(delta: float) -> void:
 	if camera and boat:
-		# Chase camera: behind and above boat, looking toward bow.
-		var forward = boat.global_basis.x.normalized()
-		var desired_pos = boat.position - forward * 8.0 + Vector3(0, 3.5, 0)
-		camera.position = camera.position.lerp(desired_pos, camera_follow_speed * delta)
-		camera.look_at(boat.position + forward * 3.0, Vector3.UP)
+		if camera_mode == CameraMode.BAIT_FOLLOW:
+			var bait_x3d = _x2d_to_3d(bait_x2d)
+			var depth_y = lerpf(water_level_y, water_level_y - bait_max_depth_3d, bait_depth_ratio)
+			var target = Vector3(bait_x3d, depth_y, boat.position.z)
+			var cam_height = lerpf(bait_camera_above, bait_camera_below, bait_depth_ratio)
+			var desired_pos = target + Vector3(0, cam_height, bait_camera_z_offset)
+			camera.position = camera.position.lerp(desired_pos, camera_follow_speed * delta)
+			camera.look_at(target, Vector3.UP)
+			camera.fov = lerpf(camera.fov, bait_camera_fov, 6.0 * delta)
+		elif camera_mode == CameraMode.TOP_DOWN_FISHING:
+			var target = boat.position + top_down_offset
+			var desired_pos = target + Vector3(0, top_down_height, 0)
+			camera.position = camera.position.lerp(desired_pos, camera_follow_speed * delta)
+			camera.look_at(target, Vector3.FORWARD)
+			camera.fov = lerpf(camera.fov, top_down_fov, 6.0 * delta)
+		else:
+			# Chase camera: behind and above boat, looking toward bow.
+			var forward = boat.global_basis.x.normalized()
+			var desired_pos = boat.position - forward * 8.0 + Vector3(0, 3.5, 0)
+			camera.position = camera.position.lerp(desired_pos, camera_follow_speed * delta)
+			camera.look_at(boat.position + forward * 3.0, Vector3.UP)
+			camera.fov = lerpf(camera.fov, default_camera_fov, 6.0 * delta)
 
 
 func _update_lighting(delta: float) -> void:
@@ -273,6 +307,7 @@ func _check_fishing_spot() -> void:
 
 func _enter_fishing_mode(spot: Dictionary) -> void:
 	state = GameState.FISHING
+	camera_mode = CameraMode.BOAT_THIRD_PERSON
 	var fishing_scene = load("res://scenes/game/fishing_mode.tscn")
 	if fishing_scene:
 		fishing_mode_node = fishing_scene.instantiate()
@@ -283,9 +318,13 @@ func _enter_fishing_mode(spot: Dictionary) -> void:
 			"zone": spot["zone"],
 			"glow_time": spot["glow_time"],
 		}
-		fishing_mode_node.setup(spot_2d, current_zone_info, null)
+		fishing_mode_node.setup(spot_2d, current_zone_info, boat, camera)
 		fishing_mode_node.fishing_ended.connect(_on_fishing_ended)
 		fishing_mode_node.fish_caught.connect(_on_fish_caught)
+		if fishing_mode_node.has_signal("bait_camera_update"):
+			fishing_mode_node.bait_camera_update.connect(_on_bait_camera_update)
+		if fishing_mode_node.has_signal("bait_camera_end"):
+			fishing_mode_node.bait_camera_end.connect(_on_bait_camera_end)
 		# Add to a CanvasLayer so it overlays the 3D view
 		var overlay = CanvasLayer.new()
 		overlay.layer = 10
@@ -296,10 +335,26 @@ func _enter_fishing_mode(spot: Dictionary) -> void:
 
 func _on_fishing_ended() -> void:
 	state = GameState.NAVIGATING
+	camera_mode = CameraMode.BOAT_THIRD_PERSON
 	var overlay = get_node_or_null("FishingOverlay")
 	if overlay:
 		overlay.queue_free()
 	fishing_mode_node = null
+
+
+func _on_bait_camera_update(x2d: float, depth_ratio: float) -> void:
+	bait_x2d = x2d
+	bait_depth_ratio = depth_ratio
+	camera_mode = CameraMode.BAIT_FOLLOW
+
+
+func _on_bait_camera_end() -> void:
+	if state != GameState.NAVIGATING:
+		camera_mode = CameraMode.BOAT_THIRD_PERSON
+
+
+func _x2d_to_3d(x2d: float) -> float:
+	return (x2d / 12000.0) * world_width - world_width / 2.0
 
 
 func _on_fish_caught(fish_id: String, size: float) -> void:
