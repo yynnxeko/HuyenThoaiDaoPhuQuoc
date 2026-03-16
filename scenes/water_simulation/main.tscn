@@ -1,10 +1,10 @@
-[gd_scene format=3 uid="uid://cdbpaiqms1wpo"]
+[gd_scene format=3 uid="uid://b8ncre0kxnh0j"]
 
-[ext_resource type="Shader" uid="uid://ble0dh7pvottq" path="res://simulation.gdshader" id="1_wj5qs"]
-[ext_resource type="Script" uid="uid://bxv78qkporwou" path="res://main.gd" id="1_ym6gf"]
-[ext_resource type="Shader" uid="uid://c7d7kiigmb7le" path="res://main.tres" id="2_7fen6"]
-[ext_resource type="Shader" uid="uid://v3wvmylpqv6y" path="res://buffer.tres" id="2_dfset"]
-[ext_resource type="Material" uid="uid://nc7fpw5shjum" path="res://tile.tres" id="3_1mcda"]
+[ext_resource type="Shader" uid="uid://e0y1cdclftua" path="res://scenes/water_simulation/simulation.gdshader" id="1_wj5qs"]
+[ext_resource type="Shader" path="res://scenes/water_simulation/main.tres" id="2_7fen6"]
+[ext_resource type="Shader" path="res://scenes/water_simulation/buffer.tres" id="2_dfset"]
+[ext_resource type="Material" path="res://scenes/water_simulation/tile.tres" id="3_1mcda"]
+[ext_resource type="Script" uid="uid://de44012f2osmp" path="res://scenes/water_simulation/main.gd" id="main_gd"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_idmas"]
 sky_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
@@ -27,9 +27,6 @@ resource_local_to_scene = true
 shader = ExtResource("2_dfset")
 shader_parameter/Texture2DParameter = SubResource("ViewportTexture_fn5i0")
 
-[sub_resource type="ViewportTexture" id="ViewportTexture_2psol"]
-viewport_path = NodePath("Collision")
-
 [sub_resource type="ViewportTexture" id="ViewportTexture_iyhgh"]
 viewport_path = NodePath("SimulationBuffer")
 
@@ -37,10 +34,9 @@ viewport_path = NodePath("SimulationBuffer")
 resource_local_to_scene = true
 shader = ExtResource("1_wj5qs")
 shader_parameter/sim_tex = SubResource("ViewportTexture_iyhgh")
-shader_parameter/col_tex = SubResource("ViewportTexture_2psol")
-shader_parameter/phase = 0.18
-shader_parameter/attenuation = 0.995
-shader_parameter/deltaUV = 2.3
+shader_parameter/phase = 0.2
+shader_parameter/attenuation = 0.999
+shader_parameter/deltaUV = 3.0
 
 [sub_resource type="Environment" id="Environment_38vk1"]
 background_mode = 1
@@ -122,22 +118,22 @@ size = Vector2(10.1, 10.1)
 subdivide_width = 500
 subdivide_depth = 500
 
-[node name="Main" type="Node3D" unique_id=1517002276]
-script = ExtResource("1_ym6gf")
+[node name="Main" type="Node3D" unique_id=856200368]
+script = ExtResource("main_gd")
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1702354310]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1714278032]
 environment = SubResource("Environment_synaj")
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1354952729]
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=500883369]
 transform = Transform3D(-0.866023, -0.433016, 0.250001, 0, 0.499998, 0.866027, -0.500003, 0.749999, -0.43301, 0, 0, 0)
 shadow_enabled = true
 
-[node name="SimulationBuffer" type="SubViewport" parent="." unique_id=1708393047]
+[node name="SimulationBuffer" type="SubViewport" parent="." unique_id=1511938389]
 size = Vector2i(514, 512)
 render_target_clear_mode = 2
 render_target_update_mode = 4
 
-[node name="ColorRect" type="ColorRect" parent="SimulationBuffer" unique_id=2068545065]
+[node name="ColorRect" type="ColorRect" parent="SimulationBuffer" unique_id=100851175]
 material = SubResource("ShaderMaterial_6vesp")
 anchors_preset = 15
 anchor_right = 1.0
@@ -146,12 +142,12 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0, 0, 0, 1)
 
-[node name="Simulation" type="SubViewport" parent="." unique_id=1732545459]
+[node name="Simulation" type="SubViewport" parent="." unique_id=2086936708]
 size = Vector2i(514, 512)
 render_target_clear_mode = 2
 render_target_update_mode = 4
 
-[node name="ColorRect" type="ColorRect" parent="Simulation" unique_id=1435089433]
+[node name="ColorRect" type="ColorRect" parent="Simulation" unique_id=1814063845]
 material = SubResource("ShaderMaterial_cg4ft")
 anchors_preset = 15
 anchor_right = 1.0
@@ -160,11 +156,11 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0, 0, 0, 1)
 
-[node name="Collision" type="SubViewport" parent="." unique_id=453700101]
+[node name="Collision" type="SubViewport" parent="." unique_id=972466174]
 size = Vector2i(514, 512)
 render_target_update_mode = 4
 
-[node name="WaterCam" type="Camera3D" parent="Collision" unique_id=1401333846]
+[node name="WaterCam" type="Camera3D" parent="Collision" unique_id=1531109275]
 transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, -5, 0)
 keep_aspect = 0
 cull_mask = 524288
@@ -175,38 +171,38 @@ size = 10.1
 near = 0.001
 far = 5.0
 
-[node name="Ball" type="Node3D" parent="." unique_id=437773482]
+[node name="Ball" type="Node3D" parent="." unique_id=2054953715]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
 
-[node name="Mesh" type="MeshInstance3D" parent="Ball" unique_id=1306398365]
+[node name="Mesh" type="MeshInstance3D" parent="Ball" unique_id=1425382034]
 mesh = SubResource("SphereMesh_uny4g")
 
-[node name="WaterCollision" type="MeshInstance3D" parent="Ball" unique_id=1499368155]
+[node name="WaterCollision" type="MeshInstance3D" parent="Ball" unique_id=408622463]
 layers = 524288
 mesh = SubResource("SphereMesh_hyi7f")
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="Ball" unique_id=1041960600]
+[node name="AnimationPlayer" type="AnimationPlayer" parent="Ball" unique_id=1223570739]
 libraries/ = SubResource("AnimationLibrary_oo1wg")
 autoplay = &"dip"
 
-[node name="CSGBox3D" type="CSGBox3D" parent="." unique_id=1615505017]
+[node name="CSGBox3D" type="CSGBox3D" parent="." unique_id=1125805070]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.6945, 0)
 visible = false
 size = Vector3(12, 5, 12)
 material = ExtResource("3_1mcda")
 
-[node name="CSGBox3D2" type="CSGBox3D" parent="CSGBox3D" unique_id=1875287267]
+[node name="CSGBox3D2" type="CSGBox3D" parent="CSGBox3D" unique_id=874589160]
 operation = 2
 size = Vector3(10, 8, 10)
 
-[node name="PoolFloor" type="MeshInstance3D" parent="." unique_id=360764753]
+[node name="PoolFloor" type="MeshInstance3D" parent="." unique_id=1868320191]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -3.76016, 0)
 mesh = SubResource("PlaneMesh_psqb2")
 
-[node name="Water" type="MeshInstance3D" parent="." unique_id=1982659749]
+[node name="Water" type="MeshInstance3D" parent="." unique_id=2080375374]
 mesh = SubResource("PlaneMesh_ntba4")
 
-[node name="MainCam" type="Camera3D" parent="." unique_id=1596795713]
+[node name="MainCam" type="Camera3D" parent="." unique_id=1669935891]
 transform = Transform3D(1, 0, 0, 0, 0.584009, 0.811747, 0, -0.811747, 0.584009, 0, 7.21336, 7.47377)
 cull_mask = 524287
 current = true
