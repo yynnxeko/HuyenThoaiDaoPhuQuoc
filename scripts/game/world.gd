@@ -3,6 +3,7 @@ extends Node3D
 ## 3D Game World — manages boat, ocean, camera, fishing spots, zones
 
 signal return_to_menu
+signal go_to_village
 
 enum GameState { NAVIGATING, FISHING, MINIGAME, UI_OPEN }
 var state: GameState = GameState.NAVIGATING
@@ -55,7 +56,7 @@ func _ready() -> void:
 	
 	# Keyboard shortcut hints on HUD
 	if hud and hud.has_method("show_message"):
-		hud.show_message("W/S: Tang giam ga | A/D: Lai | E: Cau ca | M: Ban do | T: Cho | U: Nang cap")
+		hud.show_message("W/S: Ga | A/D: Lai | E: Cau | M: Ban do | T: Cho | U: Nang cap | B: Ve lang")
 
 
 func _process(delta: float) -> void:
@@ -112,6 +113,10 @@ func _process_navigation(delta: float) -> void:
 	# Collection
 	if Input.is_action_just_pressed("open_collection"):
 		_open_collection()
+	
+	# Go to Village (Key V hoặc B)
+	if Input.is_action_just_pressed("go_to_village") or Input.is_action_just_pressed("return_to_game"):
+		go_to_village.emit()
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
