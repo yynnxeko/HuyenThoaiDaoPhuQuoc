@@ -1,0 +1,5 @@
+[gd_scene format=3 uid="uid://40rncrhksve8"]
+
+[ext_resource type="PackedScene" uid="uid://bdkhtm8vxlvjr" path="res://assets/sprites/ca/Fish Pack 30 - Coral Bay.gltf" id="1_h23af"]
+
+[node name="Fish Pack 30 - Coral Bay2" unique_id=1819922333 instance=ExtResource("1_h23af")]

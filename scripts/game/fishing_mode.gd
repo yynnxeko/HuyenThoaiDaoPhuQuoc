@@ -33,6 +33,9 @@ var bait_attract_strength: float = 0.0
 var bait_movement_energy: float = 0.0
 var bait_prev_pos: Vector2 = Vector2.ZERO
 var bait_movement_speed: float = 0.0
+var fish_spawn_cooldown: float = 6.0
+var fish_spawn_timer: float = 0.0
+var bite_ready_timer: float = 0.0
 
 # Bobber
 var bobber_pos: Vector2 = Vector2.ZERO
@@ -149,8 +152,8 @@ func _spawn_nearby_fish() -> void:
 			"suspicion": 0.0,
 			"fishCuriosity": randf_range(0.6, 1.3),
 			"fishCaution": randf_range(0.6, 1.4),
-			"bite_threshold": randf_range(55.0, 85.0),
-			"suspicion_limit": randf_range(60.0, 100.0),
+			"bite_threshold": randf_range(45.0, 75.0),
+			"suspicion_limit": randf_range(80.0, 120.0),
 			"cue": "idle",
 			"cue_timer": randf_range(0.0, 2.0),
 			"circle_angle": randf() * TAU,
@@ -200,6 +203,8 @@ func _spawn_sparkle(pos: Vector2, color: Color, count: int = 8) -> void:
 
 func _process(delta: float) -> void:
 	wave_time += delta
+	if fish_spawn_timer > 0.0:
+		fish_spawn_timer = max(0.0, fish_spawn_timer - delta)
 	if state != FishingState.IDLE:
 		bobber_bob_time += delta
 	if state == FishingState.IDLE or state == FishingState.CASTING:
@@ -328,6 +333,15 @@ func _process_bait_control(delta: float) -> void:
 
 func _process_waiting(delta: float) -> void:
 	wait_timer += delta
+	bite_ready_timer += delta
+	# Respawn fish if most have fled
+	var active_count := 0
+	for f in nearby_fish:
+		if not f.get("flee", false):
+			active_count += 1
+	if active_count <= 2 and fish_spawn_timer <= 0.0:
+		_spawn_nearby_fish()
+		fish_spawn_timer = fish_spawn_cooldown
 	
 	# Make some fish interested in the bait over time
 	var interest_progress = clampf(wait_timer / bite_time, 0.0, 1.0)
@@ -336,19 +350,32 @@ func _process_waiting(delta: float) -> void:
 			fish["interested"] = true
 	
 	if wait_timer >= bite_time:
-		if bite_fish != null:
+		var candidate_index := -1
+		for i in range(nearby_fish.size()):
+			var f = nearby_fish[i]
+			if f.get("flee", false):
+				continue
+			var interest_val: float = float(f.get("interest", 0.0))
+			var bite_threshold: float = float(f.get("bite_threshold", 70.0))
+			if interest_val >= bite_threshold:
+				candidate_index = i
+				break
+		if bite_fish != null and (candidate_index != -1 or bite_ready_timer >= bite_time * 1.6):
 			state = FishingState.FISH_BITE
 			bite_alert_timer = 0.0
 			hook_quality = "none"
 			_setup_fish_stats()
 			AudioManager.play_bite_alert()
-			# Position the biting fish
-			biting_fish_pos = Vector2(hook_pos.x + randf_range(-150, 150), hook_pos.y + randf_range(-30, 30))
+			# Position the biting fish at the visible candidate
+			var candidate = nearby_fish[candidate_index] if candidate_index != -1 else nearby_fish[randi() % nearby_fish.size()]
+			biting_fish_pos = Vector2(candidate["x"], candidate["y"])
 			biting_fish_target = hook_pos
+			candidate["flee"] = true
 			_spawn_bubble(hook_pos, 5)
+			bite_ready_timer = 0.0
 		else:
-			_calculate_bite_time()
-			wait_timer = 0.0
+			# Keep waiting until a visible fish reaches bite threshold
+			wait_timer = bite_time * 0.7
 	
 	if Input.is_action_just_pressed("interact"):
 		_end_fishing()
@@ -562,6 +589,8 @@ func _update_nearby_fish(delta: float) -> void:
 		if fish["flee"]:
 			fish["x"] += fish["speed"] * fish["dir"] * 3.0 * delta
 			fish["alpha"] = max(0, fish.get("alpha", 0.5) - delta)
+			if fish["alpha"] <= 0.0:
+				fish["remove"] = true
 			continue
 		if state == FishingState.WAITING:
 			var behavior = fish.get("behavior", "small")
@@ -579,8 +608,9 @@ func _update_nearby_fish(delta: float) -> void:
 				behavior_bonus = 0.6 + movement_speed_norm * 0.9
 			else:
 				behavior_bonus = 0.5
-			interest += lure_movement * curiosity * behavior_bonus * 40.0 * delta
-			suspicion += movement_speed_norm * caution * 45.0 * delta
+			interest += (lure_movement * curiosity * behavior_bonus * 55.0 + bait_attract_strength * 10.0) * delta
+			suspicion += movement_speed_norm * caution * 18.0 * delta
+			suspicion = max(0.0, suspicion - (0.8 + curiosity * 0.3) * delta)
 			fish["interest"] = clampf(interest, 0.0, 100.0)
 			fish["suspicion"] = clampf(suspicion, 0.0, 120.0)
 			if fish["suspicion"] > fish.get("suspicion_limit", 90.0):
@@ -650,6 +680,13 @@ func _update_nearby_fish(delta: float) -> void:
 		elif fish["x"] < -50:
 			fish["x"] = 2000.0
 			fish["dir"] = -1.0
+
+	# Remove fully fled fish
+	var idx := nearby_fish.size() - 1
+	while idx >= 0:
+		if nearby_fish[idx].get("remove", false):
+			nearby_fish.remove_at(idx)
+		idx -= 1
 
 
 func _update_particles(delta: float) -> void:

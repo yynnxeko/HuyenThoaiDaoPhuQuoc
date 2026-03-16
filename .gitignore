@@ -31,3 +31,7 @@ desktop.ini
 # Save data
 *.save
 save_data.json
+
+# Large Assets
+*.gltf
+*.glb
