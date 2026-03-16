@@ -404,27 +404,41 @@ func _on_visual_fish_update(pos_2d: Vector2, fish_data, p_visible: bool, is_figh
 	
 	if active_fish_3d:
 		active_fish_3d.show()
-		# Map 2D to 3D. 
+		
+		# Map 2D screen coordinate to 3D world space
+		# We project to a plane parallel to the camera at the boat's depth
+		var cam_forward = -camera.global_basis.z
+		var boat_dist = (boat.global_position - camera.global_position).dot(cam_forward)
+		
 		var ray_origin = camera.project_ray_origin(pos_2d)
 		var ray_normal = camera.project_ray_normal(pos_2d)
 		
-		# Assume plane at Z = boat.z + offset (to be in front of boat)
-		var plane_z = boat.position.z + 1.0 
-		var t = (plane_z - ray_origin.z) / ray_normal.z
+		# Prevent division by zero
+		var denom = ray_normal.dot(cam_forward)
+		if abs(denom) < 0.001: denom = 0.001
+		
+		var t = boat_dist / denom
 		var pos_3d = ray_origin + ray_normal * t
 		
-		active_fish_3d.position = pos_3d
+		active_fish_3d.global_position = pos_3d
 		
-		# Scale based on fish weight/size
-		var s = fish_data.max_size * 1.5
-		if fish_data.rarity == "legendary": s = clampf(s, 5.0, 10.0)
+		# Ensure fish is always slightly in front of the boat so boat doesn't clip it
+		active_fish_3d.global_position += cam_forward * 1.5
+		
+		# Scale: Larger for better visibility in fishing mode
+		var s = fish_data.max_size * 2.5
+		if fish_data.rarity == "legendary": s = clampf(s, 6.0, 12.0)
 		active_fish_3d.scale = Vector3(s, s, s)
 		
-		# Rotation
+		# Orientation: Side-on to camera
+		# First make it look toward a point to the side of the camera
+		var cam_right = camera.global_basis.x
+		active_fish_3d.look_at(active_fish_3d.global_position + cam_right, Vector3.UP)
+		
+		# Dynamic fight rotation
 		if is_fighting:
-			active_fish_3d.rotation.y += 0.5 
-		else:
-			active_fish_3d.rotation.y = PI/2
+			active_fish_3d.rotation.z += sin(Time.get_ticks_msec() * 0.02) * 0.5
+			active_fish_3d.rotation.y += sin(Time.get_ticks_msec() * 0.01) * 0.2
 
 
 func _on_bait_camera_update(x2d: float, depth_ratio: float) -> void:
