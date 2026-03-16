@@ -6,6 +6,7 @@ signal fishing_ended
 signal fish_caught(fish_id: String, size: float)
 signal bait_camera_update(x2d: float, depth_ratio: float)
 signal bait_camera_end
+signal visual_fish_update(pos: Vector2, fish_data: Object, is_visible: bool, is_fighting: bool)
 
 enum FishingState { IDLE, CASTING, LINE_SINKING, WAITING, FISH_BITE, MINIGAME, CAUGHT, ESCAPED }
 var state: FishingState = FishingState.IDLE
@@ -117,7 +118,7 @@ func _update_line_start() -> void:
 		var forward = boat_3d.global_basis.x.normalized()
 		var rod_tip_world = boat_3d.global_position + forward * 1.4 + Vector3(0, 1.6, 0)
 		line_start = camera_ref.unproject_position(rod_tip_world)
-		var viewport_size = get_viewport_rect().size
+		var viewport_size = get_viewport_rect().size if is_inside_tree() else Vector2(1920, 1080)
 		line_start.x = clampf(line_start.x, 0.0, viewport_size.x)
 		line_start.y = clampf(line_start.y, 0.0, viewport_size.y)
 		return
@@ -254,6 +255,15 @@ func _process(delta: float) -> void:
 	if state != FishingState.IDLE and state != FishingState.CASTING:
 		bobber_pos.y = surface_y + sin(bobber_bob_time * 2.0) * 3.0
 		bobber_pos.x = lerp(bobber_pos.x, hook_pos.x, 0.12)
+	
+	# Emit visual update for the biting fish
+	if bite_fish:
+		var is_fighting = (state == FishingState.MINIGAME)
+		var is_caught = (state == FishingState.CAUGHT)
+		var vis = (state == FishingState.FISH_BITE or is_fighting or is_caught)
+		visual_fish_update.emit(biting_fish_pos, bite_fish, vis, is_fighting)
+	else:
+		visual_fish_update.emit(Vector2.ZERO, null, false, false)
 	
 	queue_redraw()
 
@@ -870,7 +880,8 @@ func _draw() -> void:
 		_draw_fishing_line()
 	
 	# === BITING / FIGHTING FISH ===
-	if state == FishingState.FISH_BITE or state == FishingState.MINIGAME:
+	# Hiding 2D drawing to use 3D visual from World
+	if false and (state == FishingState.FISH_BITE or state == FishingState.MINIGAME):
 		if bite_fish:
 			var fish_size = bite_fish.max_size * 18.0
 			var fish_col = bite_fish.color
@@ -883,7 +894,7 @@ func _draw() -> void:
 					draw_circle(biting_fish_pos, fish_size * (1.5 + float(r) * 0.3), Color(rarity_col.r, rarity_col.g, rarity_col.b, 0.06))
 	
 	# === CAUGHT FISH (rising out of water) ===
-	if state == FishingState.CAUGHT and bite_fish:
+	if false and state == FishingState.CAUGHT and bite_fish:
 		var fish_size = bite_fish.max_size * 20.0
 		_draw_fish_body(biting_fish_pos, fish_size, bite_fish.color, 1.0)
 		# Victory glow

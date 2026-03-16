@@ -1,11 +1,11 @@
 [gd_scene format=3 uid="uid://cgk52ydq4ciow"]
 
-[ext_resource type="Script" uid="uid://bjjx5fmhuxt1d" path="res://scripts/game/world.gd" id="1_world"]
-[ext_resource type="Script" uid="uid://c5q6t26b35p4w" path="res://scripts/game/boat.gd" id="2_boat"]
-[ext_resource type="Script" uid="uid://b3k32m0x4ec4d" path="res://scripts/ui/hud.gd" id="3_hud"]
-[ext_resource type="Shader" uid="uid://jo15w2btoifa" path="res://shaders/ocean_3d.gdshader" id="4_ocean"]
+[ext_resource type="Script" path="res://scripts/game/world.gd" id="1_world"]
+[ext_resource type="Script" path="res://scripts/game/boat.gd" id="2_boat"]
+[ext_resource type="Script" path="res://scripts/ui/hud.gd" id="3_hud"]
+[ext_resource type="Shader" path="res://shaders/ocean_3d.gdshader" id="4_ocean"]
 [ext_resource type="PackedScene" uid="uid://c0bejaln4f88o" path="res://assets/sprites/boat1/boat1.glb" id="5_boat_model"]
-[ext_resource type="Script" uid="uid://n6ksepmr5dra" path="res://scenes/game/water_ani.gd" id="6_5i0tg"]
+[ext_resource type="Script" path="res://scenes/game/water_ani.gd" id="6_5i0tg"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMat_1"]
 sky_top_color = Color(0.3, 0.55, 0.9, 1)
