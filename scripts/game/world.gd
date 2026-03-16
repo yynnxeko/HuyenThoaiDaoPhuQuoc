@@ -43,6 +43,24 @@ var hud_canvas: CanvasLayer = null
 
 # Fish underwater (decorative 3D)
 var fish_nodes: Array = []
+var active_fish_3d: Node3D = null
+var active_fish_data = null
+
+# Mapping from database ID to GLTF model node name
+var fish_id_to_model = {
+	"ca_thu": "Fusilier",
+	"ca_mu": "Bicolor",
+	"ca_nuc": "Fusilier",
+	"ca_chim": "Bannerfish",
+	"ca_hong": "Clown Triggerfish",
+	"ca_bop": "PurpleTang",
+	"ca_ngu": "BlueTang3",
+	"ca_kiem": "Yellow Longnose",
+	"ca_map": "BlueTang3",
+	"muc_khong_lo": "Copperband",
+	"rong_bien": "BlueTang",
+	"rua_vang": "YellowTang"
+}
 
 # Environment time
 var day_night_time: float = 0.0
@@ -92,7 +110,7 @@ func _process(delta: float) -> void:
 	_check_zone()
 
 
-func _process_navigation(delta: float) -> void:
+func _process_navigation(_delta: float) -> void:
 	# Boat steering input
 	var steer_input = 0.0
 	if Input.is_action_pressed("move_right"):
@@ -167,7 +185,7 @@ func _update_camera(delta: float) -> void:
 			camera.fov = lerpf(camera.fov, default_camera_fov, 6.0 * delta)
 
 
-func _update_lighting(delta: float) -> void:
+func _update_lighting(_delta: float) -> void:
 	if sun_light == null:
 		return
 	
@@ -243,36 +261,55 @@ func _create_spot_marker(pos: Vector3) -> void:
 
 
 func _spawn_decorative_fish() -> void:
-	for i in range(12):
-		var fish_mesh = MeshInstance3D.new()
-		var capsule = CapsuleMesh.new()
-		capsule.radius = randf_range(0.08, 0.2)
-		capsule.height = randf_range(0.4, 0.8)
-		fish_mesh.mesh = capsule
-		fish_mesh.rotation_degrees.z = 90  # Horizontal
+	var fish_pack = load("res://assets/sprites/ca/Fish Pack 30 - Coral Bay.gltf")
+	if not fish_pack: return
+	var pack_instance = fish_pack.instantiate()
+	
+	var all_fish_types = FishDatabase.get_all_fish()
+	
+	for i in range(15):
+		# Pick a random fish type from database
+		var f_data = all_fish_types.pick_random()
+		var model_name = fish_id_to_model.get(f_data.id, "BlueTang")
 		
-		var mat = StandardMaterial3D.new()
-		mat.albedo_color = Color(randf_range(0.3, 0.7), randf_range(0.4, 0.8), randf_range(0.5, 0.9), 0.7)
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		fish_mesh.material_override = mat
+		# Find and duplicate the model from pack
+		var original_node = pack_instance.find_child(model_name, true, false)
+		if not original_node: continue
 		
-		fish_mesh.position = Vector3(
+		var fish_model = original_node.duplicate()
+		add_child(fish_model)
+		
+		# Position
+		fish_model.position = Vector3(
 			randf_range(-world_width / 2.0, world_width / 2.0),
-			randf_range(-2.0, -0.5),
-			randf_range(-3.0, 3.0)
+			randf_range(-2.5, -0.8),
+			randf_range(-4.0, 4.0)
 		)
-		add_child(fish_mesh)
+		
+		# SCALE: Larger max_size = Larger model
+		# We use a base scale of 1.5 and multiply by max_size
+		var s = f_data.max_size * 1.5
+		# Keep legendary fish from being TOO huge for the scene
+		if f_data.rarity == "legendary": s = clampf(s, 5.0, 10.0)
+		fish_model.scale = Vector3(s, s, s)
+		
+		var swim_dir = [-1.0, 1.0].pick_random()
+		# Rotate to face direction (assuming model faces +X or -X)
+		fish_model.rotation.y = PI/2 if swim_dir > 0 else -PI/2
+		
 		fish_nodes.append({
-			"node": fish_mesh,
-			"speed": randf_range(1.0, 4.0),
-			"dir": [-1.0, 1.0][randi() % 2],
+			"node": fish_model,
+			"speed": f_data.speed * 0.05, # Adjust 3D speed scale
+			"dir": swim_dir,
 			"wave_offset": randf() * TAU,
 		})
+	
+	pack_instance.queue_free()
 
 
 func _update_decorative_fish(delta: float) -> void:
 	for fish in fish_nodes:
-		var node: MeshInstance3D = fish["node"]
+		var node: Node3D = fish["node"]
 		if node == null:
 			continue
 		node.position.x += fish["speed"] * fish["dir"] * delta
@@ -316,6 +353,7 @@ func _enter_fishing_mode(spot: Dictionary) -> void:
 		fishing_mode_node.setup(spot_2d, current_zone_info, boat, camera)
 		fishing_mode_node.fishing_ended.connect(_on_fishing_ended)
 		fishing_mode_node.fish_caught.connect(_on_fish_caught)
+		fishing_mode_node.visual_fish_update.connect(_on_visual_fish_update)
 		if fishing_mode_node.has_signal("bait_camera_update"):
 			fishing_mode_node.bait_camera_update.connect(_on_bait_camera_update)
 		if fishing_mode_node.has_signal("bait_camera_end"):
@@ -335,6 +373,58 @@ func _on_fishing_ended() -> void:
 	if overlay:
 		overlay.queue_free()
 	fishing_mode_node = null
+	
+	if active_fish_3d:
+		active_fish_3d.queue_free()
+		active_fish_3d = null
+		active_fish_data = null
+
+
+func _on_visual_fish_update(pos_2d: Vector2, fish_data, p_visible: bool, is_fighting: bool) -> void:
+	if not p_visible or fish_data == null:
+		if active_fish_3d:
+			active_fish_3d.hide()
+		return
+	
+	# Create model if needed or if type changed
+	if active_fish_3d == null or active_fish_data != fish_data:
+		if active_fish_3d: active_fish_3d.queue_free()
+		
+		var fish_pack = load("res://assets/sprites/ca/Fish Pack 30 - Coral Bay.gltf")
+		if not fish_pack: return
+		var pack_instance = fish_pack.instantiate()
+		var model_name = fish_id_to_model.get(fish_data.id, "BlueTang")
+		var original_node = pack_instance.find_child(model_name, true, false)
+		
+		if original_node:
+			active_fish_3d = original_node.duplicate()
+			add_child(active_fish_3d)
+			active_fish_data = fish_data
+		pack_instance.queue_free()
+	
+	if active_fish_3d:
+		active_fish_3d.show()
+		# Map 2D to 3D. 
+		var ray_origin = camera.project_ray_origin(pos_2d)
+		var ray_normal = camera.project_ray_normal(pos_2d)
+		
+		# Assume plane at Z = boat.z + offset (to be in front of boat)
+		var plane_z = boat.position.z + 1.0 
+		var t = (plane_z - ray_origin.z) / ray_normal.z
+		var pos_3d = ray_origin + ray_normal * t
+		
+		active_fish_3d.position = pos_3d
+		
+		# Scale based on fish weight/size
+		var s = fish_data.max_size * 1.5
+		if fish_data.rarity == "legendary": s = clampf(s, 5.0, 10.0)
+		active_fish_3d.scale = Vector3(s, s, s)
+		
+		# Rotation
+		if is_fighting:
+			active_fish_3d.rotation.y += 0.5 
+		else:
+			active_fish_3d.rotation.y = PI/2
 
 
 func _on_bait_camera_update(x2d: float, depth_ratio: float) -> void:
