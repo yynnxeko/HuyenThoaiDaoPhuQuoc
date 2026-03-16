@@ -4,13 +4,21 @@ extends Node3D
 
 var facing_right: bool = true
 var move_input: float = 0.0
-var velocity_x: float = 0.0
+var steer_input: float = 0.0
+var throttle_input: float = 0.0
+var velocity: Vector3 = Vector3.ZERO
+var yaw_velocity: float = 0.0
+var current_speed: float = 0.0
 var bob_time: float = 0.0
 
-# Movement
-var speed: float = 8.0
-var acceleration: float = 12.0
-var friction: float = 6.0
+# Movement (boat-like steering)
+var max_forward_speed: float = 12.0
+var max_reverse_speed: float = 4.0
+var acceleration: float = 4.5
+var water_drag: float = 1.8
+var turn_speed_deg: float = 70.0
+var turn_accel: float = 4.0
+var turn_damping: float = 3.5
 
 # Mesh nodes (created in _ready)
 var hull_mesh: MeshInstance3D
@@ -22,7 +30,9 @@ var rod_mesh: MeshInstance3D
 
 
 func _ready() -> void:
-	_build_boat_model()
+	# If a custom model is already attached in the scene, skip procedural mesh creation.
+	if get_child_count() == 0:
+		_build_boat_model()
 
 
 func _build_boat_model() -> void:
@@ -137,27 +147,63 @@ func _build_boat_model() -> void:
 
 func _process(delta: float) -> void:
 	bob_time += delta
+	# Backward compatibility in case caller still sets move_input.
+	if absf(steer_input) < 0.001:
+		steer_input = move_input
 	
-	# Apply movement
-	if move_input != 0:
-		velocity_x = lerp(velocity_x, move_input * speed, acceleration * delta)
-		facing_right = move_input > 0
-	else:
-		velocity_x = lerp(velocity_x, 0.0, friction * delta)
+	# Apply steering (A/D rotates the boat like a rudder)
+	var target_yaw_velocity = steer_input * deg_to_rad(turn_speed_deg)
+	yaw_velocity = lerpf(yaw_velocity, target_yaw_velocity, turn_accel * delta)
+	yaw_velocity = lerpf(yaw_velocity, 0.0, turn_damping * delta)
+	rotation.y += yaw_velocity * delta
+
+	# Player throttle controls forward/reverse speed.
+	var forward = global_basis.x.normalized()
+	var target_speed = 0.0
+	if throttle_input > 0.0:
+		target_speed = throttle_input * max_forward_speed
+	elif throttle_input < 0.0:
+		target_speed = throttle_input * max_reverse_speed
+	current_speed = lerpf(current_speed, target_speed, acceleration * delta)
+	current_speed = lerpf(current_speed, 0.0, water_drag * delta)
+	velocity = forward * current_speed
+	position += velocity * delta
+
+	# Keep gameplay on water lane.
+	position.z = clampf(position.z, -7.0, 7.0)
 	
-	position.x += velocity_x * delta
+	# === Wave-based water simulation (level 2) ===
+	# Use similar wave function as ocean_3d.gdshader to place and tilt the boat.
+	var t := Time.get_ticks_msec() / 1000.0
+	var wave_height_value := _get_wave_height(global_position, t)
+	# Boat rides on top of waves (offset a bit so hull is not fully submerged).
+	position.y = wave_height_value + 0.1
 	
-	# Wave bobbing
-	position.y = sin(bob_time * 1.5) * 0.15 + cos(bob_time * 0.8) * 0.08
+	# Approximate surface normal from neighboring samples to tilt the boat.
+	var sample_offset := 0.8
+	var h_x_plus := _get_wave_height(global_position + Vector3(sample_offset, 0, 0), t)
+	var h_z_plus := _get_wave_height(global_position + Vector3(0, 0, sample_offset), t)
+	var dx := h_x_plus - wave_height_value
+	var dz := h_z_plus - wave_height_value
+	var normal := Vector3(-dx, 1.0, -dz).normalized()
 	
-	# Tilt based on wave
-	rotation_degrees.z = sin(bob_time * 1.2) * 3.0 + velocity_x * 0.5
-	rotation_degrees.x = cos(bob_time * 0.9) * 1.5
-	
-	# Face direction
-	var target_rot_y = 0.0 if facing_right else 180.0
-	rotation_degrees.y = lerp_angle(rotation_degrees.y, target_rot_y, delta * 5.0)
+	# Convert normal to tilt. Keep yaw from steering logic above.
+	rotation_degrees.z = lerp(rotation_degrees.z, rad_to_deg(atan2(normal.x, normal.y)), 5.0 * delta)
+	rotation_degrees.x = lerp(rotation_degrees.x, -rad_to_deg(atan2(normal.z, normal.y)), 5.0 * delta)
+
+	facing_right = global_basis.x.x >= 0.0
 	
 	# Rod sway
 	if rod_mesh:
 		rod_mesh.rotation_degrees.z = -35.0 + sin(bob_time * 1.0) * 3.0
+
+
+func _get_wave_height(world_pos: Vector3, t: float) -> float:
+	# Must roughly match ocean_3d.gdshader's vertex() function so the boat rides the visual waves.
+	var wave_frequency: float = 2.0
+	var wave_height: float = 0.35
+	var wave1 := sin(world_pos.x * wave_frequency * 0.3 + t * 1.1) * wave_height * 0.6
+	var wave2 := sin(world_pos.z * wave_frequency * 0.5 + t * 0.8 + 1.5) * wave_height * 0.4
+	var wave3 := sin((world_pos.x + world_pos.z) * wave_frequency * 0.7 + t * 1.4) * wave_height * 0.2
+	var wave4 := cos(world_pos.x * wave_frequency * 1.2 + t * 2.0) * wave_height * 0.1
+	return wave1 + wave2 + wave3 + wave4

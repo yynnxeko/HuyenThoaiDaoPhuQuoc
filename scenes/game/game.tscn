@@ -1,32 +1,17 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene format=3 uid="uid://cgk52ydq4ciow"]
 
-[ext_resource type="Script" path="res://scripts/game/world.gd" id="1_world"]
-[ext_resource type="Script" path="res://scripts/game/boat.gd" id="2_boat"]
-[ext_resource type="Script" path="res://scripts/ui/hud.gd" id="3_hud"]
-[ext_resource type="Shader" path="res://shaders/ocean_3d.gdshader" id="4_ocean"]
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_ocean"]
-shader = ExtResource("4_ocean")
-shader_parameter/shallow_color = Color(0.1, 0.6, 0.7, 0.85)
-shader_parameter/deep_color = Color(0.02, 0.15, 0.35, 0.95)
-shader_parameter/foam_color = Color(0.9, 0.95, 1.0, 0.6)
-shader_parameter/wave_speed = 1.0
-shader_parameter/wave_height = 0.35
-shader_parameter/wave_frequency = 2.0
-shader_parameter/foam_amount = 0.3
-shader_parameter/time_scale = 1.0
-
-[sub_resource type="PlaneMesh" id="PlaneMesh_ocean"]
-size = Vector2(250, 40)
-subdivide_width = 120
-subdivide_depth = 30
+[ext_resource type="Script" uid="uid://bjjx5fmhuxt1d" path="res://scripts/game/world.gd" id="1_world"]
+[ext_resource type="Script" uid="uid://c5q6t26b35p4w" path="res://scripts/game/boat.gd" id="2_boat"]
+[ext_resource type="Script" uid="uid://b3k32m0x4ec4d" path="res://scripts/ui/hud.gd" id="3_hud"]
+[ext_resource type="Shader" uid="uid://jo15w2btoifa" path="res://shaders/ocean_3d.gdshader" id="4_ocean"]
+[ext_resource type="PackedScene" uid="uid://c0bejaln4f88o" path="res://assets/sprites/boat1/boat1.glb" id="5_boat_model"]
+[ext_resource type="Script" uid="uid://n6ksepmr5dra" path="res://scenes/game/water_ani.gd" id="6_5i0tg"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMat_1"]
 sky_top_color = Color(0.3, 0.55, 0.9, 1)
 sky_horizon_color = Color(0.75, 0.82, 0.95, 1)
 ground_bottom_color = Color(0.02, 0.1, 0.25, 1)
 ground_horizon_color = Color(0.15, 0.3, 0.5, 1)
-sun_angle_max = 30.0
 
 [sub_resource type="Sky" id="Sky_1"]
 sky_material = SubResource("SkyMat_1")
@@ -42,35 +27,123 @@ fog_enabled = true
 fog_light_color = Color(0.6, 0.75, 0.9, 1)
 fog_density = 0.002
 
-[node name="Game" type="Node3D"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ocean"]
+render_priority = 0
+shader = ExtResource("4_ocean")
+shader_parameter/shallow_color = Color(0.1, 0.6, 0.7, 0.85)
+shader_parameter/deep_color = Color(0.02, 0.15, 0.35, 0.95)
+shader_parameter/foam_color = Color(0.9, 0.95, 1, 0.6)
+shader_parameter/wave_speed = 1.0
+shader_parameter/wave_height = 0.35
+shader_parameter/wave_frequency = 2.0
+shader_parameter/foam_amount = 0.3
+shader_parameter/time_scale = 1.0
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_ocean"]
+size = Vector2(250, 40)
+subdivide_width = 120
+subdivide_depth = 30
+
+[sub_resource type="Gradient" id="Gradient_lfrn8"]
+offsets = PackedFloat32Array(0, 0.98992443, 1)
+colors = PackedColorArray(1, 1, 1, 1, 0.2770781, 0.2770781, 0.2770781, 1, 1, 1, 1, 1)
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_5i0tg"]
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_bdhmt"]
+noise = SubResource("FastNoiseLite_5i0tg")
+color_ramp = SubResource("Gradient_lfrn8")
+seamless = true
+seamless_blend_skirt = 1.0
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_87uf6"]
+frequency = 0.03
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_2a8rs"]
+noise = SubResource("FastNoiseLite_87uf6")
+seamless = true
+as_normal_map = true
+seamless_blend_skirt = 1.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_4j704"]
+albedo_color = Color(0.15309113, 0.6463007, 0.8346166, 1)
+albedo_texture = SubResource("NoiseTexture2D_bdhmt")
+roughness = 0.0
+normal_enabled = true
+normal_texture = SubResource("NoiseTexture2D_2a8rs")
+uv1_scale = Vector3(5, 5, 5)
+
+[sub_resource type="QuadMesh" id="QuadMesh_kp23o"]
+
+[sub_resource type="Animation" id="Animation_lfrn8"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:material_override:uv1_offset")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector3(0, 0, 0)]
+}
+
+[sub_resource type="Animation" id="Animation_5i0tg"]
+resource_name = "flow"
+length = 1.0333333
+loop_mode = 2
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:material_override:uv1_offset")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 1),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector3(0, 0, 0), Vector3(1, 0, 0)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_bdhmt"]
+_data = {
+&"RESET": SubResource("Animation_lfrn8"),
+&"flow": SubResource("Animation_5i0tg")
+}
+
+[node name="Game" type="Node3D" unique_id=2073185200]
 script = ExtResource("1_world")
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=356525084]
 environment = SubResource("Environment_1")
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1619812727]
 transform = Transform3D(1, 0, 0, 0, 0.866, 0.5, 0, -0.5, 0.866, 0, 20, 10)
 light_color = Color(1, 0.95, 0.85, 1)
-light_energy = 1.0
 shadow_enabled = true
 
-[node name="OceanMesh" type="MeshInstance3D" parent="."]
-mesh = SubResource("PlaneMesh_ocean")
+[node name="OceanMesh" type="MeshInstance3D" parent="." unique_id=611099925]
 material_override = SubResource("ShaderMaterial_ocean")
+mesh = SubResource("PlaneMesh_ocean")
 
-[node name="Boat3D" type="Node3D" parent="."]
+[node name="Boat3D" type="Node3D" parent="." unique_id=2047875047]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3, 0)
 script = ExtResource("2_boat")
 
-[node name="Camera3D" type="Camera3D" parent="."]
+[node name="BoatModel" parent="Boat3D" unique_id=509898975 instance=ExtResource("5_boat_model")]
+transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0)
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=564460432]
 transform = Transform3D(1, 0, 0, 0, 0.966, 0.259, 0, -0.259, 0.966, 0, 5, 15)
 fov = 50.0
 far = 300.0
 
-[node name="HUD" type="CanvasLayer" parent="."]
+[node name="HUD" type="CanvasLayer" parent="." unique_id=2035966363]
 layer = 20
 
-[node name="HUDControl" type="Control" parent="HUD"]
+[node name="HUDControl" type="Control" parent="HUD" unique_id=241550595]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -78,3 +151,14 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("3_hud")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1124447894]
+transform = Transform3D(100, 0, 0, 0, -4.371139e-06, 100, 0, -100, -4.371139e-06, 0, 0, 0)
+visible = false
+material_override = SubResource("StandardMaterial3D_4j704")
+mesh = SubResource("QuadMesh_kp23o")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="MeshInstance3D" unique_id=1987924147]
+libraries/ = SubResource("AnimationLibrary_bdhmt")
+speed_scale = 0.043
+script = ExtResource("6_5i0tg")

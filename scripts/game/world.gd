@@ -55,7 +55,7 @@ func _ready() -> void:
 	
 	# Keyboard shortcut hints on HUD
 	if hud and hud.has_method("show_message"):
-		hud.show_message("A/D: Di chuyen | E: Cau ca | M: Ban do | T: Cho | U: Nang cap")
+		hud.show_message("W/S: Tang giam ga | A/D: Lai | E: Cau ca | M: Ban do | T: Cho | U: Nang cap")
 
 
 func _process(delta: float) -> void:
@@ -76,17 +76,26 @@ func _process(delta: float) -> void:
 
 
 func _process_navigation(delta: float) -> void:
-	# Boat movement input
-	var move_input = 0.0
+	# Boat steering input
+	var steer_input = 0.0
 	if Input.is_action_pressed("move_right"):
-		move_input = 1.0
+		steer_input = 1.0
 	elif Input.is_action_pressed("move_left"):
-		move_input = -1.0
+		steer_input = -1.0
+
+	# Boat throttle input (W/S or Up/Down)
+	var throttle_input = 0.0
+	if Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP):
+		throttle_input += 1.0
+	if Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN):
+		throttle_input -= 1.0
 	
 	if boat:
-		boat.move_input = move_input
-		# Clamp boat position
+		boat.steer_input = steer_input
+		boat.throttle_input = throttle_input
+		# Keep boat inside gameplay area.
 		boat.position.x = clampf(boat.position.x, -world_width / 2.0, world_width / 2.0)
+		boat.position.z = clampf(boat.position.z, -7.0, 7.0)
 	
 	# Interact
 	if Input.is_action_just_pressed("interact"):
@@ -117,12 +126,11 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 func _update_camera(delta: float) -> void:
 	if camera and boat:
-		# Smooth follow boat X position
-		var target_x = boat.position.x
-		camera.position.x = lerp(camera.position.x, target_x, camera_follow_speed * delta)
-		# Keep camera Y/Z fixed (side view)
-		camera.position.y = 5.0
-		camera.position.z = 15.0
+		# Chase camera: behind and above boat, looking toward bow.
+		var forward = boat.global_basis.x.normalized()
+		var desired_pos = boat.position - forward * 8.0 + Vector3(0, 3.5, 0)
+		camera.position = camera.position.lerp(desired_pos, camera_follow_speed * delta)
+		camera.look_at(boat.position + forward * 3.0, Vector3.UP)
 
 
 func _update_lighting(delta: float) -> void:
@@ -246,7 +254,7 @@ func _check_fishing_spot() -> void:
 	if boat == null:
 		return
 	for spot in fishing_spots:
-		var dist = abs(boat.position.x - spot["x3d"])
+		var dist = Vector2(boat.position.x - spot["x3d"], boat.position.z).length()
 		if dist < 3.0:
 			if not GameData.is_zone_unlocked(spot["zone"]):
 				if hud and hud.has_method("show_message"):
