@@ -5,6 +5,7 @@ extends Node2D
 
 signal boss_defeated(fish_id: String, size: float)
 signal boss_escaped
+signal boss_visual_update(pos: Vector2, fish_data: Object, p_visible: bool)
 
 enum BossPhase { APPEAR, PHASE_1, PHASE_2, PHASE_3, VICTORY, FAILED }
 var phase: BossPhase = BossPhase.APPEAR
@@ -88,6 +89,10 @@ func _process(delta: float) -> void:
 			_process_victory(delta)
 		BossPhase.FAILED:
 			_process_failed(delta)
+	
+	# Emit visual update for 3D boss
+	var is_visible = (phase != BossPhase.FAILED)
+	boss_visual_update.emit(boss_pos + boss_shake, boss_fish, is_visible)
 	
 	_update_particles(delta)
 	queue_redraw()
@@ -290,7 +295,9 @@ func _draw() -> void:
 		draw_line(line_start + shake_offset, boss_pos + boss_shake + shake_offset, Color(0.8, 0.8, 0.8, 0.7), 1.5)
 	
 	# === DRAW BOSS ===
-	_draw_boss(shake_offset)
+	# Disabled 2D draw to use 3D models from World
+	if false:
+		_draw_boss(shake_offset)
 	
 	# Particles
 	for p in particles:

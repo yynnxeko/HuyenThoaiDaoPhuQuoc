@@ -7,6 +7,7 @@ signal fish_caught(fish_id: String, size: float)
 signal bait_camera_update(x2d: float, depth_ratio: float)
 signal bait_camera_end
 signal visual_fish_update(pos: Vector2, fish_data: Object, is_visible: bool, is_fighting: bool)
+signal nearby_fish_visual_update(fish_list: Array)
 
 enum FishingState { IDLE, CASTING, LINE_SINKING, WAITING, FISH_BITE, MINIGAME, CAUGHT, ESCAPED }
 var state: FishingState = FishingState.IDLE
@@ -128,23 +129,29 @@ func _update_line_start() -> void:
 
 func _spawn_nearby_fish() -> void:
 	nearby_fish.clear()
-	for i in range(randi_range(4, 8)):
+	var zone_id = spot_data.get("zone", "coastal")
+	# Get available fish for this zone to make models match
+	var avail = FishDatabase.get_all_fish().filter(func(f): return zone_id in f.zones)
+	if avail.is_empty(): avail = FishDatabase.get_all_fish()
+
+	for i in range(randi_range(2, 4)):
+		var f_data = avail.pick_random()
 		var behavior = "small"
-		var roll = randf()
-		if roll > 0.75:
-			behavior = "predator"
-		elif roll > 0.5:
-			behavior = "rare"
+		if f_data.rarity in ["rare", "epic"]: behavior = "predator"
+		elif f_data.rarity == "legendary": behavior = "rare"
+		
 		var fish_x = randf_range(300, 1600)
 		var fish_y = randf_range(water_line_y + 60, 900)
 		nearby_fish.append({
+			"fish_id": f_data.id,
+			"fish_data": f_data,
 			"x": fish_x,
 			"y": fish_y,
 			"base_y": fish_y,
 			"speed": randf_range(30, 80),
 			"dir": [-1.0, 1.0][randi() % 2],
-			"size": randf_range(10, 22),
-			"color": Color(randf_range(0.3, 0.7), randf_range(0.5, 0.8), randf_range(0.6, 0.9), 0.5),
+			"size": randf_range(16, 28),
+			"color": f_data.color,
 			"wave_phase": randf() * TAU,
 			"interested": false,
 			"flee": false,
@@ -161,6 +168,7 @@ func _spawn_nearby_fish() -> void:
 			"circle_radius": randf_range(28.0, 60.0),
 			"doubt_phase": randf() * TAU,
 			"tail_amp": 1.0,
+			"alpha": 0.5
 		})
 
 
@@ -255,6 +263,9 @@ func _process(delta: float) -> void:
 		visual_fish_update.emit(biting_fish_pos, bite_fish, vis, is_fighting)
 	else:
 		visual_fish_update.emit(Vector2.ZERO, null, false, false)
+	
+	# Emit nearby fish positions for 3D matching
+	nearby_fish_visual_update.emit(nearby_fish)
 	
 	queue_redraw()
 
@@ -748,16 +759,25 @@ func _calculate_bite_time() -> void:
 		return
 	
 	var total_weight = 0.0
+	var weights = []
 	for fish in available_fish:
-		total_weight += FishDatabase.get_spawn_weight(fish.rarity) * GameData.get_bait_attract()
+		var w = FishDatabase.get_spawn_weight(fish.rarity) * GameData.get_bait_attract()
+		# Giảm tỉ lệ cá to dựa trên độ gần bờ (càng gần x=0 càng ít cá to)
+		if zone_id == "coastal" and fish.max_size > 1.0:
+			var x_pos = spot_data.get("x", 1000.0)
+			var proximity_to_shore = clampf(1.0 - (x_pos / 2000.0), 0.0, 1.0)
+			var dynamic_penalty = lerpf(0.3, 0.02, proximity_to_shore)
+			w *= dynamic_penalty
+		weights.append(w)
+		total_weight += w
 	
 	var roll = randf() * total_weight
 	var accumulated = 0.0
 	bite_fish = available_fish[0]
-	for fish in available_fish:
-		accumulated += FishDatabase.get_spawn_weight(fish.rarity) * GameData.get_bait_attract()
+	for i in range(available_fish.size()):
+		accumulated += weights[i]
 		if roll <= accumulated:
-			bite_fish = fish
+			bite_fish = available_fish[i]
 			break
 	
 	match bite_fish.rarity:
@@ -809,9 +829,10 @@ func _draw() -> void:
 	draw_rect(Rect2(0, 0, sw, sh), Color(0, 0, 0, 0.1))
 	
 	# === UNDERWATER NEARBY FISH ===
-	for fish in nearby_fish:
-		if fish["y"] > water_line_y:
-			_draw_fish_body(Vector2(fish["x"], fish["y"]), fish["size"], fish["color"], fish["dir"], fish.get("tail_amp", 1.0))
+	# Commented out to use the 3D visuals handled by world.gd
+	# for fish in nearby_fish:
+	# 	if fish["y"] > water_line_y:
+	# 		_draw_fish_body(Vector2(fish["x"], fish["y"]), fish["size"], Color(fish["color"].r, fish["color"].g, fish["color"].b, 0.4), fish["dir"], fish.get("tail_amp", 1.0))
 	
 	# === BUBBLES ===
 	for b in bubbles:
