@@ -2,14 +2,14 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://58ujyqirxfwy"
+uid="uid://xrgu18njkrae"
 path.s3tc="res://.godot/imported/boat1_texture_pbr_20250901.png-bab030c2598f0594518f914270e6b1c9.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "08c64330b9fb861f236958a0c51372eb"
+"md5": "3e196ab5de117ca413448101041e2398"
 }
 
 [deps]
