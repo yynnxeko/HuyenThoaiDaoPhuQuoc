@@ -19,6 +19,18 @@ var water_drag: float = 1.8
 var turn_speed_deg: float = 70.0
 var turn_accel: float = 4.0
 var turn_damping: float = 3.5
+var buoyancy_smoothing: float = 5.0 # (Used for rotation smoothing now)
+var buoyancy_strength: float = 25.0 # Increased for better response
+var attraction_strength: float = 10.0 # Pull toward surface
+var vertical_damping: float = 0.98 # Refined damping
+var gravity: float = 12.0 # Slightly heavier gravity
+
+# Wave sampling points (offsets from center)
+var boat_length: float = 3.0
+var boat_width: float = 1.2
+var sampling_points: Array[Vector3] = []
+
+var ocean_manager: Node3D = null
 
 # Mesh nodes (created in _ready)
 var hull_mesh: MeshInstance3D
@@ -30,6 +42,9 @@ var rod_mesh: MeshInstance3D
 
 
 func _ready() -> void:
+	# Find ocean manager in the scene
+	ocean_manager = get_tree().root.find_child("Ocean", true, false)
+	
 	# If a custom model is already attached in the scene, skip procedural mesh creation.
 	if get_child_count() == 0:
 		_build_boat_model()
@@ -143,6 +158,38 @@ func _build_boat_model() -> void:
 	rod_mesh.position = Vector3(1.2, 1.5, 0)
 	rod_mesh.rotation_degrees = Vector3(0, 0, -35)
 	add_child(rod_mesh)
+	
+	# === HEADLIGHTS ===
+	_add_headlight(Vector3(2.3, 0.4, 0.45))
+	_add_headlight(Vector3(2.3, 0.4, -0.45))
+
+
+func _add_headlight(pos: Vector3) -> void:
+	# Visual fixture
+	var light_mesh = MeshInstance3D.new()
+	var sphere = SphereMesh.new()
+	sphere.radius = 0.12
+	sphere.height = 0.2
+	light_mesh.mesh = sphere
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(0.9, 0.9, 0.8)
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 1.0, 0.8)
+	mat.emission_energy_multiplier = 4.0
+	light_mesh.material_override = mat
+	light_mesh.position = pos
+	light_mesh.rotation_degrees.z = 90
+	add_child(light_mesh)
+	
+	# Light source
+	var light = SpotLight3D.new()
+	light.position = pos + Vector3(0.2, 0, 0)
+	light.light_color = Color(1.0, 1.0, 0.9)
+	light.light_energy = 5.0
+	light.spot_range = 25.0
+	light.spot_angle = 45.0
+	light.shadow_enabled = true
+	add_child(light)
 
 
 func _process(delta: float) -> void:
@@ -172,38 +219,67 @@ func _process(delta: float) -> void:
 	# Keep gameplay on water lane.
 	position.z = clampf(position.z, -7.0, 7.0)
 	
-	# === Wave-based water simulation (level 2) ===
-	# Use similar wave function as ocean_3d.gdshader to place and tilt the boat.
-	var t := Time.get_ticks_msec() / 1000.0
-	var wave_height_value := _get_wave_height(global_position, t)
-	# Boat rides on top of waves (offset a bit so hull is not fully submerged).
-	position.y = wave_height_value + 0.1
-	
-	# Approximate surface normal from neighboring samples to tilt the boat.
-	var sample_offset := 0.8
-	var h_x_plus := _get_wave_height(global_position + Vector3(sample_offset, 0, 0), t)
-	var h_z_plus := _get_wave_height(global_position + Vector3(0, 0, sample_offset), t)
-	var dx := h_x_plus - wave_height_value
-	var dz := h_z_plus - wave_height_value
-	var normal := Vector3(-dx, 1.0, -dz).normalized()
-	
-	# Convert normal to tilt. Keep yaw from steering logic above.
-	rotation_degrees.z = lerp(rotation_degrees.z, rad_to_deg(atan2(normal.x, normal.y)), 5.0 * delta)
-	rotation_degrees.x = lerp(rotation_degrees.x, -rad_to_deg(atan2(normal.z, normal.y)), 5.0 * delta)
+	# === Wave-based water simulation (force-based) ===
+	if ocean_manager and ocean_manager.has_method("get_wave_height"):
+		# Multi-point sampling for pitch and roll
+		var p_front = global_position + global_basis.x * (boat_length * 0.5)
+		var p_back = global_position - global_basis.x * (boat_length * 0.5)
+		var p_left = global_position - global_basis.z * (boat_width * 0.5)
+		var p_right = global_position + global_basis.z * (boat_width * 0.5)
+		
+		var h_front = ocean_manager.get_wave_height(p_front)
+		var h_back = ocean_manager.get_wave_height(p_back)
+		var h_left = ocean_manager.get_wave_height(p_left)
+		var h_right = ocean_manager.get_wave_height(p_right)
+		var h_center = (h_front + h_back + h_left + h_right) * 0.25
+		
+		# Buoyancy Physics (Vertical Force)
+		# Allow boat to dip slightly into waves (no offset)
+		var target_y = h_center
+		
+		# Gravity
+		velocity.y -= gravity * delta
+		
+		# Buoyancy/Stick Force logic
+		var diff = target_y - global_position.y
+		# Clamped diff for attraction force prevents extreme snapping
+		var attraction_diff = clampf(diff, -2.0, 2.0)
+		
+		if diff > 0:
+			# Immersion buoyancy (stronger)
+			velocity.y += attraction_diff * buoyancy_strength * delta
+		else:
+			# Stick-to-water force (gentle pull if above)
+			velocity.y += attraction_diff * attraction_strength * delta
+			
+		# Vertical damping
+		velocity.y *= 0.98
+		
+		# Apply vertical movement manually
+		position.y += velocity.y * delta
+		
+		# Clamp extreme vertical velocity to avoid bouncing artifacts
+		velocity.y = clampf(velocity.y, -15.0, 15.0)
+		
+		# Calculate target pitch and roll
+		var target_pitch = atan2(h_back - h_front, boat_length)
+		var target_roll = atan2(h_left - h_right, boat_width)
+		
+		# Smooth rotation for "heavy" feel
+		rotation.z = lerp_angle(rotation.z, target_roll, 2.0 * delta)
+		rotation.x = lerp_angle(rotation.x, target_pitch, 2.0 * delta)
+	else:
+		# Fallback if no ocean manager
+		velocity.y -= gravity * delta
+		position.y += velocity.y * delta
+		if position.y < 0.1:
+			position.y = 0.1
+			velocity.y = 0
+		rotation.x = lerp_angle(rotation.x, 0, 3.0 * delta)
+		rotation.z = lerp_angle(rotation.z, 0, 3.0 * delta)
 
 	facing_right = global_basis.x.x >= 0.0
 	
 	# Rod sway
 	if rod_mesh:
 		rod_mesh.rotation_degrees.z = -35.0 + sin(bob_time * 1.0) * 3.0
-
-
-func _get_wave_height(world_pos: Vector3, t: float) -> float:
-	# Must roughly match ocean_3d.gdshader's vertex() function so the boat rides the visual waves.
-	var wave_frequency: float = 2.0
-	var wave_height: float = 0.35
-	var wave1 := sin(world_pos.x * wave_frequency * 0.3 + t * 1.1) * wave_height * 0.6
-	var wave2 := sin(world_pos.z * wave_frequency * 0.5 + t * 0.8 + 1.5) * wave_height * 0.4
-	var wave3 := sin((world_pos.x + world_pos.z) * wave_frequency * 0.7 + t * 1.4) * wave_height * 0.2
-	var wave4 := cos(world_pos.x * wave_frequency * 1.2 + t * 2.0) * wave_height * 0.1
-	return wave1 + wave2 + wave3 + wave4

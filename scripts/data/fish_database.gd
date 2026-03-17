@@ -132,13 +132,13 @@ static func _init_database() -> void:
 		
 		# === EPIC ===
 		FishType.new(
-			"ca_map", "Cá Mập", "Shark", "epic",
-			200, 2.0, 5.0, 130.0, 0.8,
+			"ca_map", "Cá Mập Mako", "Mako Shark", "epic",
+			250, 1.5, 4.0, 160.0, 0.8,
 			["deep_sea"] as Array[String],
-			["night", "evening"] as Array[String],
 			["any"] as Array[String],
-			"", Color(0.45, 0.5, 0.55),
-			"Cá mập săn mồi vào ban đêm ở vùng biển sâu. Rất nguy hiểm!"
+			["any"] as Array[String],
+			"", Color(0.3, 0.4, 0.6),
+			"Cá mập Mako cực kỳ nhanh nhẹn, chỉ xuất hiện ở những vùng biển sâu thẳm."
 		),
 		FishType.new(
 			"muc_khong_lo", "Mực Khổng Lồ", "Giant Squid", "epic",

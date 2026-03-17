@@ -47,7 +47,7 @@ var boat: Node3D = null
 var camera: Camera3D = null
 var hud: Control = null
 var fishing_mode_node = null
-var ocean_mesh: Node3D = null
+var ocean: MeshInstance3D = null
 
 # Fishing
 var fishing_spots: Array = []
@@ -66,24 +66,28 @@ var nearby_fish_nodes: Array = []  # Pool of 3D nodes for nearby fish in fishing
 
 # Mapping from database ID to individual GLB asset files in assets/sprites/ca
 var fish_id_to_asset = {
-	"ca_thu": "res://assets/sprites/ca/guppy_fish.glb",
-	"ca_mu": "res://assets/sprites/ca/guppy_fish.glb",
-	"ca_nuc": "res://assets/sprites/ca/guppy_fish.glb",
+	"ca_thu": "res://assets/sprites/ca/bream_fish__dorade_royale.glb",
+	"ca_mu": "res://assets/sprites/ca/bream_fish__dorade_royale.glb",
+	"ca_nuc": "res://assets/sprites/ca/bream_fish__dorade_royale.glb",
 	"ca_chim": "res://assets/sprites/ca/paracheirodon_innesi___tetra_neon.glb",
 	"ca_hong": "res://assets/sprites/ca/paracheirodon_innesi___tetra_neon.glb",
 	"ca_bop": "res://assets/sprites/ca/paracheirodon_innesi___tetra_neon.glb",
-	"ca_ngu": "res://assets/sprites/ca/paracheirodon_innesi___tetra_neon.glb",
-	"ca_kiem": "res://assets/sprites/ca/paracheirodon_innesi___tetra_neon.glb",
-	"ca_map": "res://assets/sprites/ca/bream_fish__dorade_royale.glb",
+	"ca_ngu": "res://assets/sprites/ca/jikin_goldfish.glb",
+	"ca_kiem": "res://assets/sprites/ca/tosakin_goldfish.glb",
+	"ca_map": "res://assets/sprites/ca/model_62a_-_shortfin_mako.glb",
 	"muc_khong_lo": "res://assets/sprites/ca/bream_fish__dorade_royale.glb",
-	"rong_bien": "res://assets/sprites/ca/bream_fish__dorade_royale.glb",
-	"rua_vang": "res://assets/sprites/ca/bream_fish__dorade_royale.glb"
+	"rong_bien": "res://assets/sprites/ca/tosakin_goldfish.glb",
+	"rua_vang": "res://assets/sprites/ca/jikin_goldfish.glb"
 }
 
 # Environment time
 var day_night_time: float = 0.0
 var sun_light: DirectionalLight3D = null
 var env: WorldEnvironment = null
+
+# Moon and Stars
+var moon_mesh: MeshInstance3D = null
+var stars_mesh: Node3D = null
 
 
 func _ready() -> void:
@@ -101,6 +105,13 @@ func _ready() -> void:
 
 	# Underwater layers
 	_setup_underwater_layers()
+	ocean = $OceanMesh
+	
+	if ocean and camera:
+		if ocean.has_method("set"): 
+			ocean.follow_camera = camera
+	
+	_setup_moon_and_stars()
 	
 	# Generate fishing spots
 	_generate_fishing_spots()
@@ -119,6 +130,10 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if state == GameState.NAVIGATING:
 		_process_navigation(delta)
+	
+	# Update HUD boat rotation for compass
+	if hud and boat:
+		hud.boat_rotation = boat.rotation.y
 	
 	# Update camera to follow boat
 	_update_camera(delta)
@@ -246,6 +261,77 @@ func _update_lighting(_delta: float) -> void:
 		"night":
 			sun_light.light_color = Color(0.3, 0.35, 0.6)
 			sun_light.light_energy = 0.2
+	
+	# Update Sky colors from TimeWeather
+	if env and env.environment and env.environment.sky:
+		var sky_mat = env.environment.sky.sky_material as ProceduralSkyMaterial
+		if sky_mat:
+			sky_mat.sky_top_color = TimeWeather.get_sky_top_color()
+			sky_mat.sky_horizon_color = TimeWeather.get_sky_bottom_color()
+	
+	# Update Ocean Shader with lighting
+	if boat and boat.ocean_manager:
+		var ocean_mesh = boat.ocean_manager.get_child(0) as MeshInstance3D
+		if ocean_mesh and ocean_mesh.material_override:
+			var mat = ocean_mesh.material_override as ShaderMaterial
+			if mat:
+				mat.set_shader_parameter("sun_color", sun_light.light_color)
+				# Calculate factor based on sun elevation
+				var sun_factor = clamp(1.0 - TimeWeather.get_sun_position_normalized(), 0.0, 1.0)
+				# Push factor higher during sunset/dawn
+				if period == "evening" or period == "dawn":
+					sun_factor = max(sun_factor, 0.6)
+				mat.set_shader_parameter("sun_factor", sun_factor)
+	
+	# Update Moon and Stars visibility
+	if moon_mesh:
+		moon_mesh.visible = (period == "night" or period == "evening" or period == "dawn")
+		# Simple orbit for moon
+		var moon_angle = (time_info + 0.25) * TAU
+		moon_mesh.position = Vector3(cos(moon_angle), sin(moon_angle), -0.5) * 80.0
+	
+	if stars_mesh:
+		stars_mesh.visible = (period == "night")
+
+
+func _setup_moon_and_stars() -> void:
+	# Create a simple Moon
+	moon_mesh = MeshInstance3D.new()
+	var sphere = SphereMesh.new()
+	sphere.radius = 4.0
+	sphere.height = 8.0
+	moon_mesh.mesh = sphere
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(1.0, 1.0, 0.9)
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 1.0, 0.8)
+	mat.emission_energy_multiplier = 2.0
+	moon_mesh.material_override = mat
+	add_child(moon_mesh)
+	
+	# Create a very simple starfield using many tiny meshes (since I can't easily create GPUParticles here)
+	stars_mesh = GPUParticles3D.new() # Placeholder node name
+	# For now, let's just use the sky material's features if possible, or add a few distant spheres
+	var stars_node = Node3D.new()
+	stars_node.name = "Stars"
+	add_child(stars_node)
+	for i in range(100):
+		var star = MeshInstance3D.new()
+		var s_mesh = SphereMesh.new()
+		s_mesh.radius = 0.2
+		s_mesh.height = 0.4
+		star.mesh = s_mesh
+		var s_mat = StandardMaterial3D.new()
+		s_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		s_mat.albedo_color = Color(1, 1, 1, randf_range(0.5, 1.0))
+		star.material_override = s_mat
+		star.position = Vector3(
+			randf_range(-100, 100),
+			randf_range(20, 80),
+			randf_range(-100, 100)
+		).normalized() * 150.0
+		stars_node.add_child(star)
+	stars_mesh = stars_node # Assign the container
 
 
 # ==========================================
@@ -512,37 +598,44 @@ func _update_bubbles(delta: float) -> void:
 func _spawn_decorative_fish() -> void:
 	var all_fish_types = FishDatabase.get_all_fish()
 	
-	for i in range(6):
+	for i in range(12):
 		var f_data = all_fish_types.pick_random()
-		var asset_path = fish_id_to_asset.get(f_data.id, "res://assets/sprites/ca/guppy_fish.glb")
+		var asset_path = fish_id_to_asset.get(f_data.id, "res://assets/sprites/ca/bream_fish__dorade_royale.glb")
 		var fish_scene = load(asset_path)
 		if not fish_scene: continue
 		
 		var fish_instance = fish_scene.instantiate()
-		# Wrapping in a Node3D to fix orientation and local offset
 		var wrapper = Node3D.new()
 		add_child(wrapper)
 		wrapper.add_child(fish_instance)
 		
-		# Some GLB files have different orientations, adjust if needed
-		# Usually we want the fish to face its local Z axis
 		fish_instance.position = Vector3.ZERO
 		fish_instance.rotation.y = PI/2 
 		
+		# Position according to zones
+		var zone_id = f_data.zones.pick_random()
+		var zone = ZoneDatabase.get_zone_by_id(zone_id)
+		var x_min = -world_width / 2.0
+		var x_max = world_width / 2.0
+		
+		if zone:
+			x_min = _x2d_to_3d(zone.world_x_start)
+			x_max = _x2d_to_3d(zone.world_x_end)
+		
 		wrapper.position = Vector3(
-			randf_range(-world_width / 2.0, world_width / 2.0),
-			randf_range(-10, -5),
+			randf_range(x_min, x_max),
+			randf_range(-25, -15), # Đưa xuống sâu hơn hẳn để tránh bị lộ ở ven bờ
 			randf_range(-4.0, 4.0)
 		)
 		
-		var s = f_data.max_size * 0.08
-		if f_data.rarity == "legendary": s = clampf(s, 0.25, 0.5)
+		var s = f_data.max_size * 0.04 # Giảm tỉ lệ chung từ 0.08 xuống 0.04
+		if f_data.id == "ca_map": s *= 0.02 # Giảm mạnh tỉ lệ cá mập (model này cực to)
+		if f_data.rarity == "legendary": s = clampf(s, 0.12, 0.25)
 		wrapper.scale = Vector3(s, s, s)
 		
 		var swim_dir = [-1.0, 1.0].pick_random()
 		wrapper.rotation.y = PI/2 if swim_dir > 0 else -PI/2
 		
-		# Setup real animations from GLB
 		_setup_fish_animation(fish_instance, 1.0 + f_data.speed * 0.02)
 		
 		fish_nodes.append({
@@ -550,7 +643,9 @@ func _spawn_decorative_fish() -> void:
 			"speed": f_data.speed * 0.05,
 			"dir": swim_dir,
 			"wave_offset": randf() * TAU,
-			"base_y": wrapper.position.y # Lưu lại độ sâu ban đầu
+			"base_y": wrapper.position.y,
+			"x_min": x_min,
+			"x_max": x_max
 		})
 
 
@@ -569,14 +664,17 @@ func _update_decorative_fish(delta: float) -> void:
 		# Vertical movement (sine wave)
 		var wave_speed = 1.2
 		var wave_amp = 0.4
-		node.position.y = fish.get("base_y", -5.0) + sin(time_val * wave_speed + fish["wave_offset"]) * wave_amp
+		node.position.y = fish["base_y"] + sin(time_val * wave_speed + fish["wave_offset"]) * wave_amp
+		node.position.y = clampf(node.position.y, -25.0, -3.0) # Giới hạn không cho lên cao hơn -3.0
 		
-		# Boundary wrap
-		if node.position.x > world_width / 2.0 + 8:
-			node.position.x = -world_width / 2.0 - 8
+		# Boundary wrap within its zone
+		var x_min = fish.get("x_min", -world_width / 2.0)
+		var x_max = fish.get("x_max", world_width / 2.0)
+		if node.position.x > x_max + 2:
+			node.position.x = x_min - 2
 			prev_pos = node.position
-		elif node.position.x < -world_width / 2.0 - 8:
-			node.position.x = world_width / 2.0 + 8
+		elif node.position.x < x_min - 2:
+			node.position.x = x_max + 2
 			prev_pos = node.position
 			
 		# Smooth Rotation
@@ -666,7 +764,7 @@ func _on_visual_fish_update(pos_2d: Vector2, fish_data, p_visible: bool, is_figh
 	if active_fish_3d == null or active_fish_data != fish_data:
 		if active_fish_3d: active_fish_3d.queue_free()
 		
-		var asset_path = fish_id_to_asset.get(fish_data.id, "res://assets/sprites/ca/guppy_fish.glb")
+		var asset_path = fish_id_to_asset.get(fish_data.id, "res://assets/sprites/ca/bream_fish__dorade_royale.glb")
 		var fish_scene = load(asset_path)
 		if not fish_scene: return
 		
@@ -685,7 +783,7 @@ func _on_visual_fish_update(pos_2d: Vector2, fish_data, p_visible: bool, is_figh
 		active_fish_3d.show()
 		var ray_origin = camera.project_ray_origin(pos_2d)
 		var ray_normal = camera.project_ray_normal(pos_2d)
-		var depth_y = lerpf(water_level_y, water_level_y - bait_max_depth_3d, bait_depth_ratio) - 1.5
+		var depth_y = lerpf(water_level_y, water_level_y - bait_max_depth_3d, bait_depth_ratio) # Loại bỏ offset để khớp mồi
 		var cam_forward = -camera.global_basis.z
 		
 		# Vị trí gốc của cục mồi
@@ -726,6 +824,9 @@ func _on_visual_fish_update(pos_2d: Vector2, fish_data, p_visible: bool, is_figh
 		# Scale kích thước cá
 		var s = fish_data.max_size * 0.1
 		if fish_data.rarity == "legendary": s = clampf(s, 0.3, 0.75)
+		var s = fish_data.max_size * 0.05
+		if fish_data.id == "ca_map": s *= 0.02
+		if fish_data.rarity == "legendary": s = clampf(s, 0.15, 0.4)
 		active_fish_3d.scale = active_fish_3d.scale.lerp(Vector3(s, s, s), 5.0 * get_process_delta_time())
 		
 		# ==========================================
@@ -769,7 +870,7 @@ func _on_nearby_visual_update(fish_list: Array) -> void:
 		
 		if node.get_meta("fish_id", "") != f_id:
 			for child in node.get_children(): child.queue_free()
-			var asset_path = fish_id_to_asset.get(f_id, "res://assets/sprites/ca/guppy_fish.glb")
+			var asset_path = fish_id_to_asset.get(f_id, "res://assets/sprites/ca/bream_fish__dorade_royale.glb")
 			var fish_scene = load(asset_path)
 			if fish_scene:
 				var fish_instance = fish_scene.instantiate()
@@ -796,7 +897,8 @@ func _on_nearby_visual_update(fish_list: Array) -> void:
 		# Smooth position
 		node.global_position = node.global_position.lerp(target_pos, 5.0 * get_process_delta_time())
 		
-		var s = f_data_2d.size * 0.003
+		var s = f_data_2d.size * 0.0018
+		if f_id == "ca_map": s *= 0.03
 		node.scale = node.scale.lerp(Vector3(s, s, s), 4.0 * get_process_delta_time())
 		
 		# Smooth rotation
