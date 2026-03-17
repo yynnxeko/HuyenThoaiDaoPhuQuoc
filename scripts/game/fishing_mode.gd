@@ -9,7 +9,8 @@ signal bait_camera_end
 signal visual_fish_update(pos: Vector2, fish_data: Object, is_visible: bool, is_fighting: bool)
 signal nearby_fish_visual_update(fish_list: Array)
 
-enum FishingState { IDLE, CASTING, LINE_SINKING, WAITING, FISH_BITE, MINIGAME, CAUGHT, ESCAPED }
+# THÊM MỚI: Trạng thái BAIT_FLYING để quản lý lúc mồi bay trên không
+enum FishingState { IDLE, CASTING, BAIT_FLYING, LINE_SINKING, WAITING, FISH_BITE, MINIGAME, CAUGHT, ESCAPED }
 var state: FishingState = FishingState.IDLE
 
 # Setup data
@@ -21,6 +22,12 @@ var cast_power: float = 0.0
 var cast_charging: bool = false
 var cast_max_power: float = 1.0
 var cast_speed: float = 1.5
+
+# THÊM MỚI: Biến quản lý đường bay của mồi
+var cast_start_pos: Vector2 = Vector2.ZERO
+var cast_target_pos: Vector2 = Vector2.ZERO
+var cast_flight_time: float = 0.0
+var cast_flight_duration: float = 1.0
 
 # Line
 var line_start: Vector2 = Vector2.ZERO
@@ -86,11 +93,11 @@ var boat_ref: Node = null
 var camera_ref: Camera3D = null
 
 # === VISUAL FISH ===
-var nearby_fish: Array = []  # Fish swimming near the hook
-var biting_fish_pos: Vector2 = Vector2.ZERO  # Position of the fish that's biting
+var nearby_fish: Array = [] 
+var biting_fish_pos: Vector2 = Vector2.ZERO 
 var biting_fish_target: Vector2 = Vector2.ZERO
-var fish_fight_offset: Vector2 = Vector2.ZERO  # Offset during minigame fight
-var caught_fish_anim: float = 0.0  # Animation for caught fish rising
+var fish_fight_offset: Vector2 = Vector2.ZERO 
+var caught_fish_anim: float = 0.0 
 
 # === PARTICLES ===
 var bubbles: Array = []
@@ -226,7 +233,6 @@ func _process(delta: float) -> void:
 	bait_attract_strength = max(0.0, bait_attract_strength - delta * 1.2)
 	bait_movement_energy = max(0.0, bait_movement_energy - delta * 1.5)
 	
-	# Update line_start from boat
 	_update_line_start()
 	
 	match state:
@@ -234,6 +240,8 @@ func _process(delta: float) -> void:
 			_process_idle(delta)
 		FishingState.CASTING:
 			_process_casting(delta)
+		FishingState.BAIT_FLYING:  # THÊM MỚI: Update logic mồi đang bay
+			_process_bait_flying(delta)
 		FishingState.LINE_SINKING:
 			_process_sinking(delta)
 		FishingState.WAITING:
@@ -247,46 +255,32 @@ func _process(delta: float) -> void:
 		FishingState.ESCAPED:
 			_process_escaped(delta)
 	
-	# Update nearby fish
 	_update_nearby_fish(delta)
-	# Update particles
 	_update_particles(delta)
-	# Update bait camera
 	_update_bait_camera()
-	# Hook feedback timers
+	
 	if hook_quality_timer > 0.0:
 		hook_quality_timer = max(0.0, hook_quality_timer - delta)
 	if hook_shake_time > 0.0:
 		hook_shake_time = max(0.0, hook_shake_time - delta)
-	# Player controls bait after it reaches water
+		
 	_process_bait_control(delta)
-	# Keep bobber on surface while fishing
-	if state != FishingState.IDLE and state != FishingState.CASTING:
+	
+	if state != FishingState.IDLE and state != FishingState.CASTING and state != FishingState.BAIT_FLYING: # Không bobber lúc đang bay
 		bobber_pos.y = surface_y + sin(bobber_bob_time * 2.0) * 3.0
 		bobber_pos.x = lerp(bobber_pos.x, hook_pos.x, 0.12)
-	
-	# Emit visual update for the biting fish
-	var bait_offset_x = hook_pos.x - initial_bait_x
 	
 	if bite_fish:
 		var is_fighting = (state == FishingState.MINIGAME)
 		var is_caught = (state == FishingState.CAUGHT)
 		var vis = (state == FishingState.FISH_BITE or is_fighting or is_caught)
-		# Bù trừ vị trí cá cắn câu theo chuyển động của cần
-		var adjusted_bite_pos = biting_fish_pos
-		adjusted_bite_pos.x -= bait_offset_x
-		visual_fish_update.emit(adjusted_bite_pos, bite_fish, vis, is_fighting)
+		# Bắn thẳng tọa độ thực tế, không bù trừ nữa
+		visual_fish_update.emit(biting_fish_pos, bite_fish, vis, is_fighting)
 	else:
 		visual_fish_update.emit(Vector2.ZERO, null, false, false)
 	
-	# Bù trừ vị trí các con cá xung quanh để chúng đứng yên trong thế giới 3D
-	var adjusted_nearby = []
-	for f in nearby_fish:
-		var adj_f = f.duplicate()
-		adj_f.x -= bait_offset_x
-		adjusted_nearby.append(adj_f)
-	
-	nearby_fish_visual_update.emit(adjusted_nearby)
+	# Bắn thẳng danh sách cá xung quanh
+	nearby_fish_visual_update.emit(nearby_fish)
 	
 	queue_redraw()
 
@@ -307,21 +301,50 @@ func _process_idle(_delta: float) -> void:
 		cast_charging = true
 
 
+# ĐÃ SỬA: Thay vì rơi ngay xuống nước, tính toán vị trí đích và chuyển sang trạng thái bay
 func _process_casting(delta: float) -> void:
 	if cast_charging:
 		cast_power = clampf(cast_power + cast_speed * delta, 0.0, cast_max_power)
 		if Input.is_action_just_released("cast_line"):
 			cast_charging = false
 			hook_target_depth = water_line_y + 50.0 + cast_power * 300.0
-			hook_pos.y = water_line_y + bait_min_depth
 			var cast_dir = 1.0 if (boat_ref and boat_ref.facing_right) else 1.0
-			bobber_pos = Vector2(line_start.x + cast_power * 200.0 * cast_dir, surface_y)
-			hook_pos = bobber_pos
-			_spawn_splash(bobber_pos, 8)
+			
+			cast_start_pos = line_start
+			# Ném càng xa đường bay càng dài
+			cast_target_pos = Vector2(line_start.x + cast_power * 400.0 * cast_dir, surface_y) 
+			cast_flight_time = 0.0
+			# Ném nhẹ bay nhanh, ném mạnh bay lâu hơn một chút
+			cast_flight_duration = 0.5 + cast_power * 0.4 
+			
 			AudioManager.play_cast()
-			AudioManager.play_splash(cast_power)
-			initial_bait_x = hook_pos.x # Ghi lại vị trí mồi lúc vừa quăng xuống
-			state = FishingState.LINE_SINKING
+			state = FishingState.BAIT_FLYING
+
+
+# THÊM MỚI: Hàm xử lý đường cong vút lên rồi rơi xuống nước
+func _process_bait_flying(delta: float) -> void:
+	cast_flight_time += delta
+	var t = clampf(cast_flight_time / cast_flight_duration, 0.0, 1.0)
+	
+	# Tính toán x/y trên mặt phẳng tuyến tính
+	var current_base = cast_start_pos.lerp(cast_target_pos, t)
+	
+	# Tính toán độ cao (Vòng cung) bằng hàm Sine
+	var max_arc_height = 80.0 + cast_power * 150.0 # Ném mạnh bay càng cao
+	var arc_height = sin(t * PI) * max_arc_height
+	
+	# Gộp lại tạo thành vị trí trên không trung
+	bobber_pos = Vector2(current_base.x, current_base.y - arc_height)
+	hook_pos = bobber_pos 
+	
+	# Khi hoàn thành đường bay (t=1.0) -> chạm mặt nước
+	if t >= 1.0:
+		bobber_pos = cast_target_pos
+		hook_pos = bobber_pos
+		initial_bait_x = hook_pos.x
+		_spawn_splash(bobber_pos, 8)
+		AudioManager.play_splash(cast_power)
+		state = FishingState.LINE_SINKING
 
 
 func _process_sinking(delta: float) -> void:
@@ -445,6 +468,7 @@ func _process_bite(delta: float) -> void:
 		if bite_alert_timer < hook_window_start:
 			AudioManager.play_fish_escape()
 			state = FishingState.ESCAPED
+			wait_timer = 0.0 # SỬA LỖI: Reset timer để hiện chữ
 			return
 		var elapsed = bite_alert_timer - hook_window_start
 		if elapsed <= hook_window_perfect:
@@ -454,6 +478,7 @@ func _process_bite(delta: float) -> void:
 		else:
 			AudioManager.play_fish_escape()
 			state = FishingState.ESCAPED
+			wait_timer = 0.0 # SỬA LỖI: Reset timer để hiện chữ
 			return
 		hook_quality_timer = 0.8
 		if hook_quality == "perfect":
@@ -491,6 +516,7 @@ func _process_bite(delta: float) -> void:
 func _process_minigame(delta: float) -> void:
 	if bite_fish == null:
 		state = FishingState.ESCAPED
+		wait_timer = 0.0 # SỬA LỖI: Reset timer
 		return
 	if fish_stun_time > 0.0:
 		fish_stun_time = max(0.0, fish_stun_time - delta)
@@ -561,6 +587,7 @@ func _process_minigame(delta: float) -> void:
 			_spawn_splash(bobber_pos, 12)
 			AudioManager.play_line_snap()
 			state = FishingState.ESCAPED
+			wait_timer = 0.0 # SỬA LỖI: Đứt dây câu
 			return
 	
 	# Caught!
@@ -583,6 +610,7 @@ func _process_minigame(delta: float) -> void:
 		if catch_progress <= 0.0:
 			AudioManager.play_fish_escape()
 			state = FishingState.ESCAPED
+			wait_timer = 0.0 # SỬA LỖI: Tuột mất cá do nhả dây
 
 
 func _process_caught(delta: float) -> void:
@@ -876,11 +904,6 @@ func _draw() -> void:
 	# Subtle dark overlay
 	draw_rect(Rect2(0, 0, sw, sh), Color(0, 0, 0, 0.1))
 	
-	# === UNDERWATER NEARBY FISH ===
-	# Commented out to use the 3D visuals handled by world.gd
-	# 2D bodies removed to avoid overlapping with 3D models
-	# Logic moved to world.gd for 3D visuals
-	
 	# === BUBBLES ===
 	for b in bubbles:
 		draw_circle(Vector2(b["x"], b["y"]), b["size"], Color(0.7, 0.85, 1.0, b["alpha"] * 0.6))
@@ -921,24 +944,14 @@ func _draw() -> void:
 		_draw_fishing_line()
 	
 	# === BITING / FIGHTING FISH ===
-	# Hiding 2D drawing to use 3D visual from World
 	if (state == FishingState.FISH_BITE or state == FishingState.MINIGAME):
 		if bite_fish:
 			var fish_size = bite_fish.max_size * 18.0
-			# Chỉ vẽ hiệu ứng hào quang theo độ hiếm, không vẽ body 2D chồng lên 3D
+			# Chỉ vẽ hiệu ứng hào quang theo độ hiếm
 			var rarity_col = FishDatabase.get_rarity_color(bite_fish.rarity)
 			if bite_fish.rarity in ["rare", "epic", "legendary"]:
 				for r in range(3):
 					draw_circle(biting_fish_pos, fish_size * (1.5 + float(r) * 0.3), Color(rarity_col.r, rarity_col.g, rarity_col.b, 0.08))
-	
-	# === CAUGHT FISH (rising out of water) ===
-	if false and state == FishingState.CAUGHT and bite_fish:
-		var fish_size = bite_fish.max_size * 20.0
-		_draw_fish_body(biting_fish_pos, fish_size, bite_fish.color, 1.0)
-		# Victory glow
-		var rarity_col = FishDatabase.get_rarity_color(bite_fish.rarity)
-		for r in range(5):
-			draw_circle(biting_fish_pos, fish_size * (1.2 + float(r) * 0.4), Color(rarity_col.r, rarity_col.g, rarity_col.b, 0.04))
 	
 	# === SPLASHES ===
 	for s in splashes:
@@ -960,9 +973,6 @@ func _draw() -> void:
 	# === MINIGAME UI ===
 	if state == FishingState.MINIGAME:
 		_draw_minigame_ui()
-	
-	# === CAUGHT MESSAGE ===
-	# Disabled to avoid duplicate catch popup (HUD already shows it)
 	
 	# === ESCAPED MESSAGE ===
 	if state == FishingState.ESCAPED:
@@ -996,38 +1006,112 @@ func _draw() -> void:
 
 
 func _draw_fishing_line() -> void:
-	# Line: rod tip → bobber (above water)
 	var line_color = Color(0.85, 0.85, 0.85, 0.7)
+	var is_struggling = (state == FishingState.FISH_BITE or state == FishingState.MINIGAME)
+	var time_msec = Time.get_ticks_msec() * 0.001
 	
-	# Curved line using multiple segments
-	var mid1 = line_start.lerp(bobber_pos, 0.33) + Vector2(0, 15 + sin(wave_time * 2.0) * 3.0)
-	var mid2 = line_start.lerp(bobber_pos, 0.66) + Vector2(0, 10 + sin(wave_time * 2.0 + 1.0) * 2.0)
-	draw_line(line_start, mid1, line_color, 1.0)
-	draw_line(mid1, mid2, line_color, 1.0)
-	draw_line(mid2, bobber_pos, line_color, 1.0)
+	# === ĐIỂM MỚI: TÍNH TỌA ĐỘ LƯỠI CÂU VÀ GÓC LẮC ===
+	var target_hook_pos = hook_pos
+	var hook_angle = 0.0
 	
-	# Bobber → hook (underwater)
-	draw_line(bobber_pos, hook_pos, Color(0.7, 0.7, 0.7, 0.4), 1.0)
+	if is_struggling:
+		# Gắn chặt lưỡi câu vào miệng cá (vị trí giãy)
+		target_hook_pos = biting_fish_pos
+		# Lưỡi câu bị cá giật nên quay loạn xạ (phụ thuộc độ căng dây)
+		var shake_intensity = 0.5 + (tension * 2.0 if state == FishingState.MINIGAME else 0.0)
+		hook_angle = sin(time_msec * 30.0) * shake_intensity
 	
-	# Bobber
+	# === 1. TÍNH TOÁN ĐỘ RUNG CHO DÂY TRÊN KHÔNG ===
+	var air_shake = Vector2.ZERO
+	if is_struggling:
+		var shake_power = 2.0
+		if state == FishingState.MINIGAME:
+			shake_power = 1.0 + tension * 5.0 
+		air_shake = Vector2(randf_range(-shake_power, shake_power), randf_range(-shake_power, shake_power))
+	
+	# === 2. VẼ DÂY TRÊN KHÔNG (TỪ CẦN TỚI PHAO) ===
+	if state == FishingState.BAIT_FLYING:
+		draw_line(line_start, bobber_pos, line_color, 1.5)
+	else:
+		var mid1 = line_start.lerp(bobber_pos, 0.33) + Vector2(0, 15 + sin(wave_time * 2.0) * 3.0) + air_shake
+		var mid2 = line_start.lerp(bobber_pos, 0.66) + Vector2(0, 10 + sin(wave_time * 2.0 + 1.0) * 2.0) + air_shake
+		
+		if state == FishingState.MINIGAME:
+			mid1 = line_start.lerp(bobber_pos, 0.33) + air_shake
+			mid2 = line_start.lerp(bobber_pos, 0.66) + air_shake
+			line_color = Color(1.0, 0.95, 0.9, 0.9) 
+			
+		draw_line(line_start, mid1, line_color, 1.0)
+		draw_line(mid1, mid2, line_color, 1.0)
+		draw_line(mid2, bobber_pos, line_color, 1.0)
+	
+	# === 3. VẼ DÂY DƯỚI NƯỚC (TỪ PHAO TỚI MỒI) ===
+	if state != FishingState.BAIT_FLYING:
+		var under_color = Color(0.7, 0.7, 0.7, 0.4)
+		if is_struggling:
+			var segments = 5
+			var prev_pt = bobber_pos
+			var line_thickness = 1.0 + (tension * 1.5 if state == FishingState.MINIGAME else 0.0) 
+			
+			for i in range(1, segments + 1):
+				var t = float(i) / segments
+				# ĐIỂM MỚI: Nối dây vào target_hook_pos (miệng cá) thay vì hook_pos
+				var base_pt = bobber_pos.lerp(target_hook_pos, t) 
+				
+				var offset = Vector2.ZERO
+				if i < segments: 
+					var wave = sin(time_msec * 35.0 + t * 15.0) * 6.0 
+					var rand_shake = randf_range(-4.0, 4.0)
+					if state == FishingState.MINIGAME:
+						wave *= (0.5 + tension)
+						rand_shake *= (0.5 + tension)
+					offset = Vector2(wave + rand_shake, 0) 
+					
+				var next_pt = base_pt + offset
+				draw_line(prev_pt, next_pt, under_color, line_thickness)
+				prev_pt = next_pt
+		else:
+			draw_line(bobber_pos, target_hook_pos, under_color, 1.0)
+	
+	# === 4. VẼ PHAO VÀ MỒI ===
 	draw_circle(bobber_pos, 7.0, Color(1.0, 0.25, 0.05))
 	draw_circle(bobber_pos, 4.0, Color(1.0, 1.0, 1.0, 0.7))
 	draw_circle(bobber_pos, 3.0, Color(1.0, 0.3, 0.1, 0.5))
 	
-	# Hook with bait
-	_draw_hook(hook_pos)
+	# Gọi hàm vẽ lưỡi câu được truyền thêm góc xoay
+	_draw_hook(target_hook_pos, hook_angle)
 
 
-func _draw_hook(pos: Vector2) -> void:
-	# Hook
-	draw_line(pos, pos + Vector2(0, 10), Color(0.7, 0.7, 0.7), 1.5)
-	draw_arc(pos + Vector2(5, 10), 5.0, PI * 0.5, PI * 1.5, 10, Color(0.7, 0.7, 0.7), 1.5)
-	# Bait (small worm-like shape)
-	draw_circle(pos + Vector2(5, 15), 3.0, Color(0.8, 0.4, 0.3, 0.8))
-	draw_circle(pos + Vector2(3, 13), 2.0, Color(0.9, 0.5, 0.35, 0.7))
+func _draw_hook(pos: Vector2, angle: float = 0.0) -> void:
+	# Hàm tính toán phép xoay Vector2 để lưỡi câu lắc theo miệng cá
+	var rot = func(v: Vector2) -> Vector2:
+		return Vector2(
+			v.x * cos(angle) - v.y * sin(angle),
+			v.x * sin(angle) + v.y * cos(angle)
+		)
+	
+	# Lưỡi câu (Cán)
+	draw_line(pos, pos + rot.call(Vector2(0, 10)), Color(0.7, 0.7, 0.7), 1.5)
+	
+	# Lưỡi câu (Móc câu - Vẽ bằng mảng điểm thay vì draw_arc để có thể xoay)
+	var arc_pts = PackedVector2Array()
+	var start_angle = PI * 0.5
+	var end_angle = PI * 1.5
+	var arc_points = 10
+	var radius = 5.0
+	var center = Vector2(5, 10)
+	
+	for i in range(arc_points + 1):
+		var a = lerp(start_angle, end_angle, float(i) / arc_points)
+		var pt = center + Vector2(cos(a), sin(a)) * radius
+		arc_pts.append(pos + rot.call(pt))
+		
+	draw_polyline(arc_pts, Color(0.7, 0.7, 0.7), 1.5)
+	
+	# Mồi
+	draw_circle(pos + rot.call(Vector2(5, 15)), 3.0, Color(0.8, 0.4, 0.3, 0.8))
+	draw_circle(pos + rot.call(Vector2(3, 13)), 2.0, Color(0.9, 0.5, 0.35, 0.7))
 
-
-# Helper function kept for potential future UI use but not called during main gameplay draw
 func _draw_fish_body(pos: Vector2, size: float, col: Color, direction: float, tail_amp: float = 1.0) -> void:
 	var dir = sign(direction)
 	if dir == 0: dir = 1.0
@@ -1101,11 +1185,9 @@ func _draw_bite_alert() -> void:
 	var font = ThemeDB.fallback_font
 	var alert_alpha = 0.5 + 0.5 * sin(bite_alert_timer * 10.0)
 	
-	# Exclamation mark above bobber
 	var ex_pos = bobber_pos + Vector2(-15, -50)
 	draw_string(font, ex_pos, "!", HORIZONTAL_ALIGNMENT_LEFT, -1, 48, Color(1.0, 0.2, 0.1, alert_alpha))
 	
-	# Alert text
 	var text = "CA CAN MOI! Nhan chuot trai!"
 	var text_size = font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, 28)
 	var text_pos = Vector2(960 - text_size.x / 2.0, 450)
@@ -1116,36 +1198,28 @@ func _draw_bite_alert() -> void:
 
 func _draw_minigame_ui() -> void:
 	var font = ThemeDB.fallback_font
-	
-	# === TENSION BAR (vertical, right side) ===
 	var bar_x = 1720.0
 	var bar_y = 180.0
 	var bar_w = 45.0
 	var bar_h = 520.0
 	
-	# Background with glow
 	draw_rect(Rect2(bar_x - 3, bar_y - 3, bar_w + 6, bar_h + 6), Color(0, 0, 0, 0.5))
 	draw_rect(Rect2(bar_x, bar_y, bar_w, bar_h), Color(0.1, 0.1, 0.15, 0.85))
 	
-	# Sweet zone (green area)
 	var zone_y = bar_y + (1.0 - sweet_zone_pos - sweet_zone_size / 2.0) * bar_h
 	var zone_h = sweet_zone_size * bar_h
 	draw_rect(Rect2(bar_x, zone_y, bar_w, zone_h), Color(0.15, 0.55, 0.2, 0.6))
 	draw_rect(Rect2(bar_x, zone_y, bar_w, zone_h), Color(0.2, 0.8, 0.3, 0.3), false, 1.5)
 	
-	# Tension indicator (marker)
 	var tension_y = bar_y + (1.0 - tension) * bar_h
 	var in_zone = abs(tension - sweet_zone_pos) < sweet_zone_size / 2.0
 	var ind_col = Color(0.2, 1.0, 0.3) if in_zone else Color(1.0, 0.25, 0.2)
 	draw_rect(Rect2(bar_x - 8, tension_y - 6, bar_w + 16, 12), ind_col)
 	draw_rect(Rect2(bar_x - 8, tension_y - 6, bar_w + 16, 12), Color(1, 1, 1, 0.4), false, 1.0)
 	
-	# Fish icon on the marker
 	_draw_fish_body(Vector2(bar_x - 20, tension_y), 8.0, ind_col, -1.0)
-	
 	draw_rect(Rect2(bar_x, bar_y, bar_w, bar_h), Color(1, 1, 1, 0.3), false, 2.0)
 	
-	# === PROGRESS BAR (bottom) ===
 	var prog_x = 560.0
 	var prog_y = 870.0
 	var prog_w = 800.0
@@ -1153,29 +1227,17 @@ func _draw_minigame_ui() -> void:
 	
 	draw_rect(Rect2(prog_x - 2, prog_y - 2, prog_w + 4, prog_h + 4), Color(0, 0, 0, 0.5))
 	draw_rect(Rect2(prog_x, prog_y, prog_w, prog_h), Color(0.1, 0.1, 0.15, 0.85))
-	# Progress fill with gradient
 	var prog_col = Color(0.15, 0.6, 0.9).lerp(Color(0.2, 1.0, 0.4), catch_progress)
 	draw_rect(Rect2(prog_x, prog_y, prog_w * catch_progress, prog_h), prog_col)
 	draw_rect(Rect2(prog_x, prog_y, prog_w, prog_h), Color(1, 1, 1, 0.3), false, 1.5)
 	
-	# Labels
 	draw_string(font, Vector2(bar_x - 70, bar_y - 10), "Luc keo", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1, 1, 1, 0.8))
 	draw_string(font, Vector2(prog_x, prog_y - 10), "Giu chuot trai de keo ca!", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(1, 1, 1, 0.8))
 	
-	# Fish name with rarity color
 	if bite_fish:
 		var rarity_color = FishDatabase.get_rarity_color(bite_fish.rarity)
 		var fish_text = bite_fish.name_vn + " (" + FishDatabase.get_rarity_name_vn(bite_fish.rarity) + ")"
 		draw_string(font, Vector2(prog_x, prog_y + 50), fish_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 24, rarity_color)
-
-
-func _draw_caught_message() -> void:
-	var font = ThemeDB.fallback_font
-	var popup_alpha = clampf(caught_fish_anim / 0.5, 0.0, 1.0)
-	
-	draw_rect(Rect2(660, 350, 600, 140), Color(0, 0, 0, 0.7 * popup_alpha))
-	draw_rect(Rect2(660, 350, 600, 140), Color(0.3, 0.9, 0.3, 0.5 * popup_alpha), false, 3.0)
-	draw_string(font, Vector2(720, 400), "BAT DUOC CA!", HORIZONTAL_ALIGNMENT_LEFT, -1, 40, Color(0.3, 1.0, 0.4, popup_alpha))
 
 
 func _draw_escaped_message() -> void:
@@ -1191,6 +1253,7 @@ func _draw_fishing_hud() -> void:
 	match state:
 		FishingState.IDLE: state_text = "Nhan SPACE de tha cau"
 		FishingState.CASTING: state_text = "Dang nap luc..."
+		FishingState.BAIT_FLYING: state_text = "Moi dang bay..." # THÊM MỚI CHỖ NÀY
 		FishingState.LINE_SINKING: state_text = "Moi dang chim..."
 		FishingState.WAITING: state_text = "Dang cho ca can... (E de huy)"
 		FishingState.FISH_BITE: state_text = "CA CAN MOI!"
@@ -1200,3 +1263,5 @@ func _draw_fishing_hud() -> void:
 		var bg_rect = Rect2(40, 1030, 400, 30)
 		draw_rect(bg_rect, Color(0, 0, 0, 0.4))
 		draw_string(font, Vector2(50, 1053), state_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(1, 1, 1, 0.8))
+		
+		
