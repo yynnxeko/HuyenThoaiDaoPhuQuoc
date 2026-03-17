@@ -31,6 +31,7 @@ var bait_depth_ratio: float = 0.0
 var underwater_plane: MeshInstance3D = null
 var underwater_props_root: Node3D = null
 var seaweed_nodes: Array = []
+var seabed_noise: FastNoiseLite = null
 var bubble_nodes: Array = []
 var bubble_spawn_timer: float = 0.0
 var bubble_spawn_interval: float = 1.6
@@ -38,8 +39,8 @@ var bubble_spawn_interval: float = 1.6
 # Underwater assets (optional)
 var underwater_prop_catalog = [
 	{"type": "coral", "path": "res://assets/coral.glb"},
-	{"type": "rock", "path": "res://assets/rock.glb"},
-	{"type": "seaweed", "path": "res://assets/seaweed.glb"}
+	{"type": "rock", "path": "res://assets/sprites/rock/river_rock.glb"},
+	{"type": "seaweed", "path": "res://assets/sprites/seaweed/sea_weed.glb"}
 ]
 
 # References (set in _ready from scene tree)
@@ -103,6 +104,12 @@ func _ready() -> void:
 	sun_light = $DirectionalLight3D
 	env = $WorldEnvironment
 	_sync_water_level()
+
+	# Initialize seabed noise
+	seabed_noise = FastNoiseLite.new()
+	seabed_noise.seed = randi()
+	seabed_noise.frequency = 0.04
+	seabed_noise.noise_type = FastNoiseLite.TYPE_PERLIN
 
 	# Underwater layers
 	_setup_underwater_layers()
@@ -420,19 +427,50 @@ func _create_underwater_plane() -> void:
 		underwater_plane.queue_free()
 	underwater_plane = MeshInstance3D.new()
 	underwater_plane.name = "UnderwaterDepthPlane"
-	var plane = PlaneMesh.new()
-	plane.size = Vector2(300, 80)
-	plane.subdivide_width = 20
-	plane.subdivide_depth = 10
-	underwater_plane.mesh = plane
 	
-	# Đã chỉnh sửa: Bỏ độ trong suốt, làm đáy biển có màu cát sẫm và có độ nhám 
+	# Tạo Mesh gồ ghề bằng SurfaceTool
+	var st = SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	
+	var size = Vector2(400, 80)
+	var subdiv = Vector2i(80, 20)
+	var step_x = size.x / subdiv.x
+	var step_z = size.y / subdiv.y
+	
+	for z in range(subdiv.y + 1):
+		for x in range(subdiv.x + 1):
+			var px = -size.x/2.0 + x * step_x
+			var pz = -size.y/2.0 + z * step_z
+			var py = seabed_noise.get_noise_2d(px, pz) * 5.0 # Độ cao tối đa 5.0 đơn vị
+			
+			st.set_uv(Vector2(float(x)/subdiv.x * 40, float(z)/subdiv.y * 10))
+			st.add_vertex(Vector3(px, py, pz))
+			
+	for z in range(subdiv.y):
+		for x in range(subdiv.x):
+			var i = z * (subdiv.x + 1) + x
+			st.add_index(i)
+			st.add_index(i + 1)
+			st.add_index(i + subdiv.x + 1)
+			
+			st.add_index(i + 1)
+			st.add_index(i + subdiv.x + 2)
+			st.add_index(i + subdiv.x + 1)
+			
+	st.generate_normals()
+	underwater_plane.mesh = st.commit()
+	
 	var mat = StandardMaterial3D.new()
-	mat.albedo_color = Color(0.08, 0.3, 0.45, 1.0) # Màu đáy sẫm hơn, không bệt
-	mat.roughness = 0.9 # Nhám nhám giống cát biển
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var tex = load("res://assets/sprites/under-sea/4e153ad6124e9c10c55f.jpg")
+	if tex:
+		mat.albedo_texture = tex
+	else:
+		mat.albedo_color = Color(0.08, 0.3, 0.45, 1.0)
 	
+	mat.roughness = 0.8
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	underwater_plane.material_override = mat
+	
 	underwater_plane.position = Vector3(0, water_level_y - 12.0, 0)
 	add_child(underwater_plane)
 
@@ -497,15 +535,18 @@ func _spawn_underwater_props() -> void:
 		var p: Node3D = null
 		if scene:
 			p = scene.instantiate()
+			_setup_node_animation(p, randf_range(0.8, 1.2))
 		else:
 			p = _create_underwater_fallback(str(picked["type"]))
 		underwater_props_root.add_child(p)
 
-		p.position = Vector3(
-			randf_range(-world_width / 2.0, world_width / 2.0),
-			water_level_y - randf_range(3.0, 11.0), # Rải độ sâu ra chút
-			randf_range(-20.0, 20.0)
-		)
+		var spawn_x = randf_range(-world_width / 2.0, world_width / 2.0)
+		var spawn_z = randf_range(-25.0, 25.0)
+		# Tính toán độ cao dựa trên noise để nằm đúng trên mặt đất
+		var noise_y = seabed_noise.get_noise_2d(spawn_x, spawn_z) * 5.0
+		var ground_y = (water_level_y - 12.0) + noise_y
+		
+		p.position = Vector3(spawn_x, ground_y, spawn_z)
 
 		var s = randf_range(0.5, 2.0)
 		p.scale = Vector3(s, s, s)
@@ -637,7 +678,7 @@ func _spawn_decorative_fish() -> void:
 		var swim_dir = [-1.0, 1.0].pick_random()
 		wrapper.rotation.y = PI/2 if swim_dir > 0 else -PI/2
 		
-		_setup_fish_animation(fish_instance, 1.0 + f_data.speed * 0.02)
+		_setup_node_animation(fish_instance, 1.0 + f_data.speed * 0.02)
 		
 		fish_nodes.append({
 			"node": wrapper,
@@ -774,7 +815,7 @@ func _on_visual_fish_update(pos_2d: Vector2, fish_data, p_visible: bool, is_figh
 		add_child(active_fish_3d)
 		active_fish_3d.add_child(fish_instance)
 		
-		_setup_fish_animation(fish_instance, 1.2)
+		_setup_node_animation(fish_instance, 1.2)
 		
 		fish_instance.position = Vector3.ZERO
 		fish_instance.rotation.y = PI/2
@@ -878,7 +919,7 @@ func _on_nearby_visual_update(fish_list: Array) -> void:
 				node.add_child(fish_instance)
 				
 				# Setup real animations from GLB
-				_setup_fish_animation(fish_instance, 1.0 + f_data_2d.speed * 0.01)
+				_setup_node_animation(fish_instance, 1.0 + f_data_2d.speed * 0.01)
 			node.set_meta("fish_id", f_id)
 		
 		var pos_2d = Vector2(f_data_2d.x, f_data_2d.y)
@@ -1035,7 +1076,7 @@ func _on_zone_selected(zone_id: String) -> void:
 		current_zone_info = zone
 
 
-func _setup_fish_animation(node: Node, anim_speed: float = 1.0) -> void:
+func _setup_node_animation(node: Node, anim_speed: float = 1.0) -> void:
 	var anim_player: AnimationPlayer = null
 	
 	# Tìm AnimationPlayer trong node hoặc con của nó
