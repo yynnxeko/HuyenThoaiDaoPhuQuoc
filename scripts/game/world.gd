@@ -50,6 +50,10 @@ var day_night_time: float = 0.0
 var sun_light: DirectionalLight3D = null
 var env: WorldEnvironment = null
 
+# Moon and Stars
+var moon_mesh: MeshInstance3D = null
+var stars_mesh: Node3D = null
+
 
 func _ready() -> void:
 	# Get references
@@ -61,6 +65,8 @@ func _ready() -> void:
 	hud = $HUD/HUDControl
 	sun_light = $DirectionalLight3D
 	env = $WorldEnvironment
+	
+	_setup_moon_and_stars()
 	
 	# Generate fishing spots
 	_generate_fishing_spots()
@@ -79,6 +85,10 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if state == GameState.NAVIGATING:
 		_process_navigation(delta)
+	
+	# Update HUD boat rotation for compass
+	if hud and boat:
+		hud.boat_rotation = boat.rotation.y
 	
 	# Update camera to follow boat
 	_update_camera(delta)
@@ -200,6 +210,63 @@ func _update_lighting(delta: float) -> void:
 		"night":
 			sun_light.light_color = Color(0.3, 0.35, 0.6)
 			sun_light.light_energy = 0.2
+	
+	# Update Sky colors from TimeWeather
+	if env and env.environment and env.environment.sky:
+		var sky_mat = env.environment.sky.sky_material as ProceduralSkyMaterial
+		if sky_mat:
+			sky_mat.sky_top_color = TimeWeather.get_sky_top_color()
+			sky_mat.sky_horizon_color = TimeWeather.get_sky_bottom_color()
+	
+	# Update Moon and Stars visibility
+	if moon_mesh:
+		moon_mesh.visible = (period == "night" or period == "evening" or period == "dawn")
+		# Simple orbit for moon
+		var moon_angle = (time_info + 0.25) * TAU
+		moon_mesh.position = Vector3(cos(moon_angle), sin(moon_angle), -0.5) * 80.0
+	
+	if stars_mesh:
+		stars_mesh.visible = (period == "night")
+
+
+func _setup_moon_and_stars() -> void:
+	# Create a simple Moon
+	moon_mesh = MeshInstance3D.new()
+	var sphere = SphereMesh.new()
+	sphere.radius = 4.0
+	sphere.height = 8.0
+	moon_mesh.mesh = sphere
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(1.0, 1.0, 0.9)
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 1.0, 0.8)
+	mat.emission_energy_multiplier = 2.0
+	moon_mesh.material_override = mat
+	add_child(moon_mesh)
+	
+	# Create a very simple starfield using many tiny meshes (since I can't easily create GPUParticles here)
+	stars_mesh = GPUParticles3D.new() # Placeholder node name
+	# For now, let's just use the sky material's features if possible, or add a few distant spheres
+	var stars_node = Node3D.new()
+	stars_node.name = "Stars"
+	add_child(stars_node)
+	for i in range(100):
+		var star = MeshInstance3D.new()
+		var s_mesh = SphereMesh.new()
+		s_mesh.radius = 0.2
+		s_mesh.height = 0.4
+		star.mesh = s_mesh
+		var s_mat = StandardMaterial3D.new()
+		s_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		s_mat.albedo_color = Color(1, 1, 1, randf_range(0.5, 1.0))
+		star.material_override = s_mat
+		star.position = Vector3(
+			randf_range(-100, 100),
+			randf_range(20, 80),
+			randf_range(-100, 100)
+		).normalized() * 150.0
+		stars_node.add_child(star)
+	stars_mesh = stars_node # Assign the container
 
 
 func _check_zone() -> void:

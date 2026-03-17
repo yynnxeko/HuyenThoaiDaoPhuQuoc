@@ -19,6 +19,7 @@ var water_drag: float = 1.8
 var turn_speed_deg: float = 70.0
 var turn_accel: float = 4.0
 var turn_damping: float = 3.5
+var buoyancy_smoothing: float = 3.0 # Smoothing for "heavy" feel
 
 # Mesh nodes (created in _ready)
 var hull_mesh: MeshInstance3D
@@ -143,6 +144,38 @@ func _build_boat_model() -> void:
 	rod_mesh.position = Vector3(1.2, 1.5, 0)
 	rod_mesh.rotation_degrees = Vector3(0, 0, -35)
 	add_child(rod_mesh)
+	
+	# === HEADLIGHTS ===
+	_add_headlight(Vector3(2.3, 0.4, 0.45))
+	_add_headlight(Vector3(2.3, 0.4, -0.45))
+
+
+func _add_headlight(pos: Vector3) -> void:
+	# Visual fixture
+	var light_mesh = MeshInstance3D.new()
+	var sphere = SphereMesh.new()
+	sphere.radius = 0.12
+	sphere.height = 0.2
+	light_mesh.mesh = sphere
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(0.9, 0.9, 0.8)
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 1.0, 0.8)
+	mat.emission_energy_multiplier = 4.0
+	light_mesh.material_override = mat
+	light_mesh.position = pos
+	light_mesh.rotation_degrees.z = 90
+	add_child(light_mesh)
+	
+	# Light source
+	var light = SpotLight3D.new()
+	light.position = pos + Vector3(0.2, 0, 0)
+	light.light_color = Color(1.0, 1.0, 0.9)
+	light.light_energy = 5.0
+	light.spot_range = 25.0
+	light.spot_angle = 45.0
+	light.shadow_enabled = true
+	add_child(light)
 
 
 func _process(delta: float) -> void:
@@ -176,8 +209,8 @@ func _process(delta: float) -> void:
 	# Use similar wave function as ocean_3d.gdshader to place and tilt the boat.
 	var t := Time.get_ticks_msec() / 1000.0
 	var wave_height_value := _get_wave_height(global_position, t)
-	# Boat rides on top of waves (offset a bit so hull is not fully submerged).
-	position.y = wave_height_value + 0.1
+	# Boat rides on top of waves with smoothing for "heavy" feel
+	position.y = lerpf(position.y, wave_height_value + 0.1, buoyancy_smoothing * delta)
 	
 	# Approximate surface normal from neighboring samples to tilt the boat.
 	var sample_offset := 0.8

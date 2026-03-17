@@ -8,6 +8,7 @@ var zone_name_text: String = ""
 var zone_name_timer: float = 0.0
 var catch_data = null
 var catch_timer: float = 0.0
+var boat_rotation: float = 0.0 # Current boat Y rotation in radians
 
 
 func _ready() -> void:
@@ -119,6 +120,9 @@ func _draw() -> void:
 	# === CATCH POPUP ===
 	if catch_data != null:
 		_draw_catch_popup()
+	
+	# === COMPASS ===
+	_draw_compass()
 
 
 func _draw_catch_popup() -> void:
@@ -154,3 +158,42 @@ func _draw_panel(rect: Rect2, bg_color: Color, border_color: Color) -> void:
 	draw_rect(rect, border_color, false, 1.5)
 	# Inner highlight line at top
 	draw_line(Vector2(rect.position.x + 1, rect.position.y + 1), Vector2(rect.end.x - 1, rect.position.y + 1), Color(1, 1, 1, 0.05), 1.0)
+
+
+func _draw_compass() -> void:
+	var font = ThemeDB.fallback_font
+	var center = Vector2(1780, 250)
+	var radius = 60.0
+	
+	# Compass board
+	draw_circle(center, radius + 10, Color(0.05, 0.1, 0.2, 0.8))
+	draw_arc(center, radius + 10, 0, TAU, 64, Color(0.3, 0.6, 1.0, 0.5), 2.0)
+	
+	# Cardinal points
+	var directions = ["N", "E", "S", "W"]
+	for i in range(4):
+		var angle = i * PI/2 - PI/2
+		var pos = center + Vector2(cos(angle), sin(angle)) * (radius - 15)
+		draw_string(font, pos + Vector2(-8, 8), directions[i], HORIZONTAL_ALIGNMENT_CENTER, -1, 18, Color(1, 1, 1, 0.8))
+	
+	# Needle (stationary background, boat rotates)
+	# Actually, usually compass needle rotates. Let's make the needle point North but rotate the "dial" or vice versa.
+	# Standard: Dial is fixed, needle points North relative to boat.
+	# Here: We'll draw a needle that rotates based on boat_rotation.
+	
+	var needle_angle = -boat_rotation - PI/2
+	var p1 = center + Vector2(cos(needle_angle), sin(needle_angle)) * radius
+	var p2 = center + Vector2(cos(needle_angle + PI), sin(needle_angle + PI)) * radius
+	var p_left = center + Vector2(cos(needle_angle + PI/2), sin(needle_angle + PI/2)) * 8
+	var p_right = center + Vector2(cos(needle_angle - PI/2), sin(needle_angle - PI/2)) * 8
+	
+	# North half (Red)
+	draw_colored_polygon(PackedVector2Array([p1, p_left, p_right]), Color(0.9, 0.2, 0.2))
+	# South half (White)
+	draw_colored_polygon(PackedVector2Array([p2, p_left, p_right]), Color(0.9, 0.9, 0.9))
+	
+	# Center pin
+	draw_circle(center, 4, Color(0.4, 0.4, 0.4))
+	
+	# Label
+	draw_string(font, center + Vector2(-40, 90), "LA BAN", HORIZONTAL_ALIGNMENT_CENTER, -1, 16, Color(0.6, 0.8, 1.0))
