@@ -38,6 +38,7 @@ var bait_movement_speed: float = 0.0
 var fish_spawn_cooldown: float = 6.0
 var fish_spawn_timer: float = 0.0
 var bite_ready_timer: float = 0.0
+var initial_bait_x: float = 0.0 # Lưu vị trí mồi ban đầu để bù trừ camera
 
 # Bobber
 var bobber_pos: Vector2 = Vector2.ZERO
@@ -55,6 +56,9 @@ var hook_window_start: float = 0.25
 var hook_window_length: float = 1.0
 var hook_window_perfect: float = 0.3
 var hook_quality: String = "none"
+var hook_quality_timer: float = 0.0
+var hook_shake_time: float = 0.0
+var hook_shake_strength: float = 0.0
 
 # Minigame
 var tension: float = 0.5
@@ -69,6 +73,7 @@ var fish_stamina: float = 3.0
 var fish_aggression: float = 0.2
 var fish_weight: float = 1.0
 var fish_fatigue: float = 0.0
+var fish_stun_time: float = 0.0
 
 # Visual
 var wave_time: float = 0.0
@@ -248,6 +253,11 @@ func _process(delta: float) -> void:
 	_update_particles(delta)
 	# Update bait camera
 	_update_bait_camera()
+	# Hook feedback timers
+	if hook_quality_timer > 0.0:
+		hook_quality_timer = max(0.0, hook_quality_timer - delta)
+	if hook_shake_time > 0.0:
+		hook_shake_time = max(0.0, hook_shake_time - delta)
 	# Player controls bait after it reaches water
 	_process_bait_control(delta)
 	# Keep bobber on surface while fishing
@@ -256,16 +266,27 @@ func _process(delta: float) -> void:
 		bobber_pos.x = lerp(bobber_pos.x, hook_pos.x, 0.12)
 	
 	# Emit visual update for the biting fish
+	var bait_offset_x = hook_pos.x - initial_bait_x
+	
 	if bite_fish:
 		var is_fighting = (state == FishingState.MINIGAME)
 		var is_caught = (state == FishingState.CAUGHT)
 		var vis = (state == FishingState.FISH_BITE or is_fighting or is_caught)
-		visual_fish_update.emit(biting_fish_pos, bite_fish, vis, is_fighting)
+		# Bù trừ vị trí cá cắn câu theo chuyển động của cần
+		var adjusted_bite_pos = biting_fish_pos
+		adjusted_bite_pos.x -= bait_offset_x
+		visual_fish_update.emit(adjusted_bite_pos, bite_fish, vis, is_fighting)
 	else:
 		visual_fish_update.emit(Vector2.ZERO, null, false, false)
 	
-	# Emit nearby fish positions for 3D matching
-	nearby_fish_visual_update.emit(nearby_fish)
+	# Bù trừ vị trí các con cá xung quanh để chúng đứng yên trong thế giới 3D
+	var adjusted_nearby = []
+	for f in nearby_fish:
+		var adj_f = f.duplicate()
+		adj_f.x -= bait_offset_x
+		adjusted_nearby.append(adj_f)
+	
+	nearby_fish_visual_update.emit(adjusted_nearby)
 	
 	queue_redraw()
 
@@ -299,6 +320,7 @@ func _process_casting(delta: float) -> void:
 			_spawn_splash(bobber_pos, 8)
 			AudioManager.play_cast()
 			AudioManager.play_splash(cast_power)
+			initial_bait_x = hook_pos.x # Ghi lại vị trí mồi lúc vừa quăng xuống
 			state = FishingState.LINE_SINKING
 
 
@@ -428,11 +450,21 @@ func _process_bite(delta: float) -> void:
 		if elapsed <= hook_window_perfect:
 			hook_quality = "perfect"
 		elif elapsed <= hook_window_length:
-			hook_quality = "normal"
+			hook_quality = "good"
 		else:
 			AudioManager.play_fish_escape()
 			state = FishingState.ESCAPED
 			return
+		hook_quality_timer = 0.8
+		if hook_quality == "perfect":
+			hook_shake_time = 0.4
+			hook_shake_strength = 4.0
+			fish_stun_time = 1.0
+			_spawn_splash(bobber_pos, 16)
+		elif hook_quality == "good":
+			hook_shake_time = 0.25
+			hook_shake_strength = 2.5
+			_spawn_splash(bobber_pos, 12)
 		# Legendary fish = boss encounter!
 		if bite_fish and bite_fish.rarity == "legendary":
 			_launch_boss_encounter()
@@ -460,12 +492,16 @@ func _process_minigame(delta: float) -> void:
 	if bite_fish == null:
 		state = FishingState.ESCAPED
 		return
+	if fish_stun_time > 0.0:
+		fish_stun_time = max(0.0, fish_stun_time - delta)
 	
 	# Fish pulls randomly
 	fish_pull_timer += delta
 	if fish_pull_timer >= 0.3 + randf() * 0.5:
 		fish_pull_timer = 0.0
 		var aggression = 0.6 + fish_aggression * 0.8
+		if fish_stun_time > 0.0:
+			aggression *= 0.2
 		fish_pull_direction = randf_range(-1.0, 1.0) * bite_fish.fight_difficulty * aggression
 		fish_pull_vertical = randf_range(-1.0, 1.0) * bite_fish.fight_difficulty * aggression
 		# Visual: fish jerks
@@ -832,20 +868,53 @@ func _input(event: InputEvent) -> void:
 func _draw() -> void:
 	var sw = 1920.0
 	var sh = 1080.0
+	var shake_offset = Vector2.ZERO
+	if hook_shake_time > 0.0:
+		shake_offset = Vector2(randf_range(-hook_shake_strength, hook_shake_strength), randf_range(-hook_shake_strength, hook_shake_strength))
+		draw_set_transform(shake_offset, 0.0, Vector2.ONE)
 	
 	# Subtle dark overlay
 	draw_rect(Rect2(0, 0, sw, sh), Color(0, 0, 0, 0.1))
 	
 	# === UNDERWATER NEARBY FISH ===
 	# Commented out to use the 3D visuals handled by world.gd
-	# for fish in nearby_fish:
-	# 	if fish["y"] > water_line_y:
-	# 		_draw_fish_body(Vector2(fish["x"], fish["y"]), fish["size"], Color(fish["color"].r, fish["color"].g, fish["color"].b, 0.4), fish["dir"], fish.get("tail_amp", 1.0))
+	# 2D bodies removed to avoid overlapping with 3D models
+	# Logic moved to world.gd for 3D visuals
 	
 	# === BUBBLES ===
 	for b in bubbles:
 		draw_circle(Vector2(b["x"], b["y"]), b["size"], Color(0.7, 0.85, 1.0, b["alpha"] * 0.6))
 		draw_circle(Vector2(b["x"], b["y"]), b["size"] * 0.6, Color(1.0, 1.0, 1.0, b["alpha"] * 0.3))
+
+	# === WATER RIPPLE (curiosity cue) ===
+	if state == FishingState.WAITING:
+		var ripple_amp = 0.0
+		var ripple_speed = 1.2
+		var ripple_size = 22.0
+		for f in nearby_fish:
+			if f.get("flee", false):
+				continue
+			if f.get("interested", false):
+				var behavior = f.get("behavior", "small")
+				if behavior == "predator":
+					ripple_amp = max(ripple_amp, 0.9)
+					ripple_speed = max(ripple_speed, 2.2)
+					ripple_size = max(ripple_size, 38.0)
+				elif behavior == "rare":
+					ripple_amp = max(ripple_amp, 0.6)
+					ripple_speed = max(ripple_speed, 1.0)
+					ripple_size = max(ripple_size, 30.0)
+				else:
+					ripple_amp = max(ripple_amp, 0.4)
+					ripple_speed = max(ripple_speed, 1.2)
+					ripple_size = max(ripple_size, 26.0)
+		if ripple_amp > 0.0:
+			var t = wave_time * ripple_speed
+			for i in range(2):
+				var r = ripple_size + float(i) * 12.0 + sin(t + float(i)) * 4.0
+				var alpha = 0.18 * ripple_amp - float(i) * 0.05
+				if alpha > 0.01:
+					draw_arc(Vector2(hook_pos.x, surface_y), r, 0, TAU, 48, Color(0.8, 0.9, 1.0, alpha), 1.2)
 	
 	# === FISHING LINE ===
 	if state != FishingState.IDLE:
@@ -853,17 +922,14 @@ func _draw() -> void:
 	
 	# === BITING / FIGHTING FISH ===
 	# Hiding 2D drawing to use 3D visual from World
-	if false and (state == FishingState.FISH_BITE or state == FishingState.MINIGAME):
+	if (state == FishingState.FISH_BITE or state == FishingState.MINIGAME):
 		if bite_fish:
 			var fish_size = bite_fish.max_size * 18.0
-			var fish_col = bite_fish.color
-			fish_col.a = 0.85
-			_draw_fish_body(biting_fish_pos, fish_size, fish_col, -1.0 if biting_fish_pos.x > hook_pos.x else 1.0)
-			# Rarity glow
+			# Chỉ vẽ hiệu ứng hào quang theo độ hiếm, không vẽ body 2D chồng lên 3D
 			var rarity_col = FishDatabase.get_rarity_color(bite_fish.rarity)
 			if bite_fish.rarity in ["rare", "epic", "legendary"]:
 				for r in range(3):
-					draw_circle(biting_fish_pos, fish_size * (1.5 + float(r) * 0.3), Color(rarity_col.r, rarity_col.g, rarity_col.b, 0.06))
+					draw_circle(biting_fish_pos, fish_size * (1.5 + float(r) * 0.3), Color(rarity_col.r, rarity_col.g, rarity_col.b, 0.08))
 	
 	# === CAUGHT FISH (rising out of water) ===
 	if false and state == FishingState.CAUGHT and bite_fish:
@@ -896,8 +962,7 @@ func _draw() -> void:
 		_draw_minigame_ui()
 	
 	# === CAUGHT MESSAGE ===
-	if state == FishingState.CAUGHT:
-		_draw_caught_message()
+	# Disabled to avoid duplicate catch popup (HUD already shows it)
 	
 	# === ESCAPED MESSAGE ===
 	if state == FishingState.ESCAPED:
@@ -905,6 +970,29 @@ func _draw() -> void:
 	
 	# === STATE HUD ===
 	_draw_fishing_hud()
+
+	# === HOOK QUALITY TEXT ===
+	if hook_quality_timer > 0.0 and hook_quality != "none":
+		var font = ThemeDB.fallback_font
+		var text = ""
+		var col = Color(1, 1, 1, 0.9)
+		match hook_quality:
+			"perfect":
+				text = "PERFECT HOOK!"
+				col = Color(1.0, 0.9, 0.2, 0.95)
+			"good":
+				text = "GOOD HOOK!"
+				col = Color(0.4, 1.0, 0.6, 0.95)
+			"late":
+				text = "LATE HOOK!"
+				col = Color(1.0, 0.5, 0.3, 0.95)
+		var tsize = font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, 36)
+		var pos = Vector2(960 - tsize.x / 2.0, 220)
+		draw_rect(Rect2(pos.x - 20, pos.y - 35, tsize.x + 40, 50), Color(0, 0, 0, 0.35))
+		draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, 36, col)
+
+	if hook_shake_time > 0.0:
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 func _draw_fishing_line() -> void:
@@ -939,6 +1027,7 @@ func _draw_hook(pos: Vector2) -> void:
 	draw_circle(pos + Vector2(3, 13), 2.0, Color(0.9, 0.5, 0.35, 0.7))
 
 
+# Helper function kept for potential future UI use but not called during main gameplay draw
 func _draw_fish_body(pos: Vector2, size: float, col: Color, direction: float, tail_amp: float = 1.0) -> void:
 	var dir = sign(direction)
 	if dir == 0: dir = 1.0
