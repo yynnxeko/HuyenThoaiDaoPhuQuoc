@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://dbxx0ajp8bgg4"]
 
-[ext_resource type="Script" uid="uid://c2ndq2eo75f2t" path="res://scripts/game/village.gd" id="1_v"]
+[ext_resource type="Script" uid="uid://byta400niw27c" path="res://scripts/game/village.gd" id="1_v"]
 [ext_resource type="PackedScene" uid="uid://bwat1qs1fxtlg" path="res://assets/sprites/village/Cloud.glb" id="2_cloud"]
 [ext_resource type="PackedScene" uid="uid://c6hoy8r6ia35d" path="res://assets/sprites/village/nha1.glb" id="3_nha1"]
 [ext_resource type="PackedScene" uid="uid://r88fj2dq7p6q" path="res://assets/sprites/village/nha2.glb" id="4_nha2"]
