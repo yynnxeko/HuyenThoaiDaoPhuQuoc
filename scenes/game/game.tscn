@@ -6,6 +6,7 @@
 [ext_resource type="Shader" path="res://shaders/ocean_3d.gdshader" id="4_ocean"]
 [ext_resource type="PackedScene" uid="uid://c0bejaln4f88o" path="res://assets/sprites/boat1/boat1.glb" id="5_boat_model"]
 [ext_resource type="Script" path="res://scenes/game/water_ani.gd" id="6_5i0tg"]
+[ext_resource type="Script" path="res://scripts/game/ocean.gd" id="7_ocean_script"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMat_1"]
 sky_top_color = Color(0.3, 0.55, 0.9, 1)
@@ -40,9 +41,9 @@ shader_parameter/foam_amount = 0.3
 shader_parameter/time_scale = 1.0
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_ocean"]
-size = Vector2(250, 40)
-subdivide_width = 120
-subdivide_depth = 30
+size = Vector2(300, 300)
+subdivide_width = 150
+subdivide_depth = 150
 
 [sub_resource type="Gradient" id="Gradient_lfrn8"]
 offsets = PackedFloat32Array(0, 0.98992443, 1)
@@ -125,6 +126,7 @@ light_color = Color(1, 0.95, 0.85, 1)
 shadow_enabled = true
 
 [node name="OceanMesh" type="MeshInstance3D" parent="." unique_id=611099925]
+script = ExtResource("7_ocean_script")
 material_override = SubResource("ShaderMaterial_ocean")
 mesh = SubResource("PlaneMesh_ocean")
 
