@@ -38,6 +38,7 @@ var bait_movement_speed: float = 0.0
 var fish_spawn_cooldown: float = 6.0
 var fish_spawn_timer: float = 0.0
 var bite_ready_timer: float = 0.0
+var initial_bait_x: float = 0.0 # Lưu vị trí mồi ban đầu để bù trừ camera
 
 # Bobber
 var bobber_pos: Vector2 = Vector2.ZERO
@@ -256,16 +257,27 @@ func _process(delta: float) -> void:
 		bobber_pos.x = lerp(bobber_pos.x, hook_pos.x, 0.12)
 	
 	# Emit visual update for the biting fish
+	var bait_offset_x = hook_pos.x - initial_bait_x
+	
 	if bite_fish:
 		var is_fighting = (state == FishingState.MINIGAME)
 		var is_caught = (state == FishingState.CAUGHT)
 		var vis = (state == FishingState.FISH_BITE or is_fighting or is_caught)
-		visual_fish_update.emit(biting_fish_pos, bite_fish, vis, is_fighting)
+		# Bù trừ vị trí cá cắn câu theo chuyển động của cần
+		var adjusted_bite_pos = biting_fish_pos
+		adjusted_bite_pos.x -= bait_offset_x
+		visual_fish_update.emit(adjusted_bite_pos, bite_fish, vis, is_fighting)
 	else:
 		visual_fish_update.emit(Vector2.ZERO, null, false, false)
 	
-	# Emit nearby fish positions for 3D matching
-	nearby_fish_visual_update.emit(nearby_fish)
+	# Bù trừ vị trí các con cá xung quanh để chúng đứng yên trong thế giới 3D
+	var adjusted_nearby = []
+	for f in nearby_fish:
+		var adj_f = f.duplicate()
+		adj_f.x -= bait_offset_x
+		adjusted_nearby.append(adj_f)
+	
+	nearby_fish_visual_update.emit(adjusted_nearby)
 	
 	queue_redraw()
 
@@ -299,6 +311,7 @@ func _process_casting(delta: float) -> void:
 			_spawn_splash(bobber_pos, 8)
 			AudioManager.play_cast()
 			AudioManager.play_splash(cast_power)
+			initial_bait_x = hook_pos.x # Ghi lại vị trí mồi lúc vừa quăng xuống
 			state = FishingState.LINE_SINKING
 
 
@@ -838,9 +851,8 @@ func _draw() -> void:
 	
 	# === UNDERWATER NEARBY FISH ===
 	# Commented out to use the 3D visuals handled by world.gd
-	# for fish in nearby_fish:
-	# 	if fish["y"] > water_line_y:
-	# 		_draw_fish_body(Vector2(fish["x"], fish["y"]), fish["size"], Color(fish["color"].r, fish["color"].g, fish["color"].b, 0.4), fish["dir"], fish.get("tail_amp", 1.0))
+	# 2D bodies removed to avoid overlapping with 3D models
+	# Logic moved to world.gd for 3D visuals
 	
 	# === BUBBLES ===
 	for b in bubbles:
@@ -853,17 +865,14 @@ func _draw() -> void:
 	
 	# === BITING / FIGHTING FISH ===
 	# Hiding 2D drawing to use 3D visual from World
-	if false and (state == FishingState.FISH_BITE or state == FishingState.MINIGAME):
+	if (state == FishingState.FISH_BITE or state == FishingState.MINIGAME):
 		if bite_fish:
 			var fish_size = bite_fish.max_size * 18.0
-			var fish_col = bite_fish.color
-			fish_col.a = 0.85
-			_draw_fish_body(biting_fish_pos, fish_size, fish_col, -1.0 if biting_fish_pos.x > hook_pos.x else 1.0)
-			# Rarity glow
+			# Chỉ vẽ hiệu ứng hào quang theo độ hiếm, không vẽ body 2D chồng lên 3D
 			var rarity_col = FishDatabase.get_rarity_color(bite_fish.rarity)
 			if bite_fish.rarity in ["rare", "epic", "legendary"]:
 				for r in range(3):
-					draw_circle(biting_fish_pos, fish_size * (1.5 + float(r) * 0.3), Color(rarity_col.r, rarity_col.g, rarity_col.b, 0.06))
+					draw_circle(biting_fish_pos, fish_size * (1.5 + float(r) * 0.3), Color(rarity_col.r, rarity_col.g, rarity_col.b, 0.08))
 	
 	# === CAUGHT FISH (rising out of water) ===
 	if false and state == FishingState.CAUGHT and bite_fish:
@@ -939,6 +948,7 @@ func _draw_hook(pos: Vector2) -> void:
 	draw_circle(pos + Vector2(3, 13), 2.0, Color(0.9, 0.5, 0.35, 0.7))
 
 
+# Helper function kept for potential future UI use but not called during main gameplay draw
 func _draw_fish_body(pos: Vector2, size: float, col: Color, direction: float, tail_amp: float = 1.0) -> void:
 	var dir = sign(direction)
 	if dir == 0: dir = 1.0
