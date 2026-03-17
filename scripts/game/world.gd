@@ -46,21 +46,22 @@ var hud_canvas: CanvasLayer = null
 var fish_nodes: Array = []
 var active_fish_3d: Node3D = null
 var active_fish_data = null
+var nearby_fish_nodes: Array = []  # Pool of 3D nodes for nearby fish in fishing mode
 
-# Mapping from database ID to GLTF model node name
-var fish_id_to_model = {
-	"ca_thu": "Fusilier",
-	"ca_mu": "Bicolor",
-	"ca_nuc": "Fusilier",
-	"ca_chim": "Bannerfish",
-	"ca_hong": "Clown Triggerfish",
-	"ca_bop": "PurpleTang",
-	"ca_ngu": "BlueTang3",
-	"ca_kiem": "Yellow Longnose",
-	"ca_map": "BlueTang3",
-	"muc_khong_lo": "Copperband",
-	"rong_bien": "BlueTang",
-	"rua_vang": "YellowTang"
+# Mapping from database ID to individual GLB asset files in assets/sprites/ca
+var fish_id_to_asset = {
+	"ca_thu": "res://assets/sprites/ca/guppy_fish.glb",
+	"ca_mu": "res://assets/sprites/ca/guppy_fish.glb",
+	"ca_nuc": "res://assets/sprites/ca/guppy_fish.glb",
+	"ca_chim": "res://assets/sprites/ca/paracheirodon_innesi___tetra_neon.glb",
+	"ca_hong": "res://assets/sprites/ca/paracheirodon_innesi___tetra_neon.glb",
+	"ca_bop": "res://assets/sprites/ca/paracheirodon_innesi___tetra_neon.glb",
+	"ca_ngu": "res://assets/sprites/ca/paracheirodon_innesi___tetra_neon.glb",
+	"ca_kiem": "res://assets/sprites/ca/paracheirodon_innesi___tetra_neon.glb",
+	"ca_map": "res://assets/sprites/ca/bream_fish__dorade_royale.glb",
+	"muc_khong_lo": "res://assets/sprites/ca/bream_fish__dorade_royale.glb",
+	"rong_bien": "res://assets/sprites/ca/bream_fish__dorade_royale.glb",
+	"rua_vang": "res://assets/sprites/ca/bream_fish__dorade_royale.glb"
 }
 
 # Environment time
@@ -266,69 +267,93 @@ func _create_spot_marker(pos: Vector3) -> void:
 
 
 func _spawn_decorative_fish() -> void:
-	var fish_pack = load("res://assets/sprites/ca/Fish Pack 30 - Coral Bay.gltf")
-	if not fish_pack: return
-	var pack_instance = fish_pack.instantiate()
-	
 	var all_fish_types = FishDatabase.get_all_fish()
 	
-	for i in range(15):
-		# Pick a random fish type from database
+	for i in range(6):
 		var f_data = all_fish_types.pick_random()
-		var model_name = fish_id_to_model.get(f_data.id, "BlueTang")
+		var asset_path = fish_id_to_asset.get(f_data.id, "res://assets/sprites/ca/guppy_fish.glb")
+		var fish_scene = load(asset_path)
+		if not fish_scene: continue
 		
-		# Find and duplicate the model from pack
-		var original_node = pack_instance.find_child(model_name, true, false)
-		if not original_node: continue
+		var fish_instance = fish_scene.instantiate()
+		# Wrapping in a Node3D to fix orientation and local offset
+		var wrapper = Node3D.new()
+		add_child(wrapper)
+		wrapper.add_child(fish_instance)
 		
-		var fish_model = original_node.duplicate()
-		add_child(fish_model)
+		# Some GLB files have different orientations, adjust if needed
+		# Usually we want the fish to face its local Z axis
+		fish_instance.position = Vector3.ZERO
+		fish_instance.rotation.y = PI/2 
 		
-		# Position
-		fish_model.position = Vector3(
+		wrapper.position = Vector3(
 			randf_range(-world_width / 2.0, world_width / 2.0),
-			randf_range(-2.5, -0.8),
+			randf_range(-10, -5),
 			randf_range(-4.0, 4.0)
 		)
 		
-		# SCALE: Larger max_size = Larger model
-		# We use a base scale of 1.5 and multiply by max_size
-		var s = f_data.max_size * 1.5
-		# Keep legendary fish from being TOO huge for the scene
-		if f_data.rarity == "legendary": s = clampf(s, 5.0, 10.0)
-		fish_model.scale = Vector3(s, s, s)
+		var s = f_data.max_size * 0.08
+		if f_data.rarity == "legendary": s = clampf(s, 0.25, 0.5)
+		wrapper.scale = Vector3(s, s, s)
 		
 		var swim_dir = [-1.0, 1.0].pick_random()
-		# Rotate to face direction (assuming model faces +X or -X)
-		fish_model.rotation.y = PI/2 if swim_dir > 0 else -PI/2
+		wrapper.rotation.y = PI/2 if swim_dir > 0 else -PI/2
+		
+		# Setup real animations from GLB
+		_setup_fish_animation(fish_instance, 1.0 + f_data.speed * 0.02)
 		
 		fish_nodes.append({
-			"node": fish_model,
-			"speed": f_data.speed * 0.05, # Adjust 3D speed scale
+			"node": wrapper,
+			"speed": f_data.speed * 0.05,
 			"dir": swim_dir,
 			"wave_offset": randf() * TAU,
+			"base_y": wrapper.position.y # Lưu lại độ sâu ban đầu
 		})
-	
-	pack_instance.queue_free()
 
 
 func _update_decorative_fish(delta: float) -> void:
+	var time_val = Time.get_ticks_msec() * 0.001
 	for fish in fish_nodes:
 		var node: Node3D = fish["node"]
-		if node == null:
-			continue
+		if node == null: continue
+		
+		# Save previous position for velocity calculation
+		var prev_pos = node.position
+		
+		# Horizontal movement
 		node.position.x += fish["speed"] * fish["dir"] * delta
-		node.position.y = -1.0 + sin(Time.get_ticks_msec() * 0.001 + fish["wave_offset"]) * 0.3
-		# Wrap
-		if node.position.x > world_width / 2.0 + 5:
-			node.position.x = -world_width / 2.0 - 5
-		elif node.position.x < -world_width / 2.0 - 5:
-			node.position.x = world_width / 2.0 + 5
+		
+		# Vertical movement (sine wave)
+		var wave_speed = 1.2
+		var wave_amp = 0.4
+		node.position.y = fish.get("base_y", -5.0) + sin(time_val * wave_speed + fish["wave_offset"]) * wave_amp
+		
+		# Boundary wrap
+		if node.position.x > world_width / 2.0 + 8:
+			node.position.x = -world_width / 2.0 - 8
+			prev_pos = node.position
+		elif node.position.x < -world_width / 2.0 - 8:
+			node.position.x = world_width / 2.0 + 8
+			prev_pos = node.position
+			
+		# Smooth Rotation
+		var velocity = (node.position - prev_pos) / (delta if delta > 0 else 0.001)
+		
+		# Yaw (Direction)
+		var target_yaw = PI/2 if fish["dir"] > 0 else -PI/2
+		# Only update yaw if we're not just wrapping or at zero velocity
+		if abs(velocity.x) > 0.01:
+			node.rotation.y = lerp_angle(node.rotation.y, target_yaw, 4.0 * delta)
+			
+		# Pitch (Tilting up/down)
+		# If dir is negative, we need to flip the pitch logic because the fish is facing the other way
+		var pitch_factor = 1.0 if fish["dir"] > 0 else -1.0
+		var target_pitch = clamp(velocity.y * 0.8 * pitch_factor, -0.5, 0.5)
+		node.rotation.z = lerp_angle(node.rotation.z, target_pitch, 3.0 * delta)
 
 
 func _check_fishing_spot() -> void:
-	if boat == null:
-		return
+	if boat == null: return
 	for spot in fishing_spots:
 		var dist = Vector2(boat.position.x - spot["x3d"], boat.position.z).length()
 		if dist < 3.0:
@@ -339,7 +364,7 @@ func _check_fishing_spot() -> void:
 			_enter_fishing_mode(spot)
 			return
 	if hud and hud.has_method("show_message"):
-		hud.show_message("Khong co diem cau ca gan day. Tim cac diem sang tren mat nuoc!")
+		hud.show_message("Khong co diem cau ca gan day!")
 
 
 func _enter_fishing_mode(spot: Dictionary) -> void:
@@ -348,7 +373,6 @@ func _enter_fishing_mode(spot: Dictionary) -> void:
 	var fishing_scene = load("res://scenes/game/fishing_mode.tscn")
 	if fishing_scene:
 		fishing_mode_node = fishing_scene.instantiate()
-		# Convert 3D spot to 2D data for fishing mode (fishing UI stays 2D overlay)
 		var spot_2d = {
 			"x": spot["x2d"],
 			"y": 540.0,
@@ -359,11 +383,14 @@ func _enter_fishing_mode(spot: Dictionary) -> void:
 		fishing_mode_node.fishing_ended.connect(_on_fishing_ended)
 		fishing_mode_node.fish_caught.connect(_on_fish_caught)
 		fishing_mode_node.visual_fish_update.connect(_on_visual_fish_update)
+		if fishing_mode_node.has_signal("nearby_fish_visual_update"):
+			fishing_mode_node.nearby_fish_visual_update.connect(_on_nearby_visual_update)
 		if fishing_mode_node.has_signal("bait_camera_update"):
 			fishing_mode_node.bait_camera_update.connect(_on_bait_camera_update)
 		if fishing_mode_node.has_signal("bait_camera_end"):
 			fishing_mode_node.bait_camera_end.connect(_on_bait_camera_end)
-		# Add to a CanvasLayer so it overlays the 3D view
+		fishing_mode_node.child_entered_tree.connect(_on_fishing_child_entered)
+		
 		var overlay = CanvasLayer.new()
 		overlay.layer = 10
 		overlay.name = "FishingOverlay"
@@ -375,75 +402,161 @@ func _on_fishing_ended() -> void:
 	state = GameState.NAVIGATING
 	camera_mode = CameraMode.BOAT_THIRD_PERSON
 	var overlay = get_node_or_null("FishingOverlay")
-	if overlay:
-		overlay.queue_free()
+	if overlay: overlay.queue_free()
 	fishing_mode_node = null
 	
 	if active_fish_3d:
 		active_fish_3d.queue_free()
 		active_fish_3d = null
 		active_fish_data = null
+	
+	for node in nearby_fish_nodes:
+		node.queue_free()
+	nearby_fish_nodes.clear()
 
 
 func _on_visual_fish_update(pos_2d: Vector2, fish_data, p_visible: bool, is_fighting: bool) -> void:
 	if not p_visible or fish_data == null:
-		if active_fish_3d:
-			active_fish_3d.hide()
+		if active_fish_3d: active_fish_3d.hide()
 		return
 	
-	# Create model if needed or if type changed
 	if active_fish_3d == null or active_fish_data != fish_data:
 		if active_fish_3d: active_fish_3d.queue_free()
 		
-		var fish_pack = load("res://assets/sprites/ca/Fish Pack 30 - Coral Bay.gltf")
-		if not fish_pack: return
-		var pack_instance = fish_pack.instantiate()
-		var model_name = fish_id_to_model.get(fish_data.id, "BlueTang")
-		var original_node = pack_instance.find_child(model_name, true, false)
+		var asset_path = fish_id_to_asset.get(fish_data.id, "res://assets/sprites/ca/guppy_fish.glb")
+		var fish_scene = load(asset_path)
+		if not fish_scene: return
 		
-		if original_node:
-			active_fish_3d = original_node.duplicate()
-			add_child(active_fish_3d)
-			active_fish_data = fish_data
-		pack_instance.queue_free()
+		var fish_instance = fish_scene.instantiate()
+		active_fish_3d = Node3D.new()
+		add_child(active_fish_3d)
+		active_fish_3d.add_child(fish_instance)
+		
+		# Setup real animations from GLB
+		_setup_fish_animation(fish_instance, 1.2)
+		
+		fish_instance.position = Vector3.ZERO
+		fish_instance.rotation.y = PI/2
+		active_fish_data = fish_data
 	
 	if active_fish_3d:
 		active_fish_3d.show()
-		
-		# Map 2D screen coordinate to 3D world space
-		# We project to a plane parallel to the camera at the boat's depth
+		var ray_origin = camera.project_ray_origin(pos_2d)
+		var ray_normal = camera.project_ray_normal(pos_2d)
+		var depth_y = lerpf(water_level_y, water_level_y - bait_max_depth_3d, bait_depth_ratio) - 1.5
 		var cam_forward = -camera.global_basis.z
-		var boat_dist = (boat.global_position - camera.global_position).dot(cam_forward)
 		
+		var target_pos = Vector3.ZERO
+		if abs(ray_normal.y) > 0.0001:
+			var t = (depth_y - ray_origin.y) / ray_normal.y
+			target_pos = ray_origin + ray_normal * t
+		else:
+			target_pos = ray_origin + ray_normal * 10.0
+		
+		target_pos += cam_forward * 0.5
+		
+		# Smooth position follow
+		var follow_speed = 8.0 if is_fighting else 4.0
+		active_fish_3d.global_position = active_fish_3d.global_position.lerp(target_pos, follow_speed * get_process_delta_time())
+		
+		var s = fish_data.max_size * 0.1
+		if fish_data.rarity == "legendary": s = clampf(s, 0.3, 0.75)
+		active_fish_3d.scale = active_fish_3d.scale.lerp(Vector3(s, s, s), 5.0 * get_process_delta_time())
+		
+		# Smooth orientation
+		var cam_right = camera.global_basis.x
+		var look_target = active_fish_3d.global_position + cam_right
+		# In fighting mode, make it more erratic
+		if is_fighting:
+			look_target += Vector3(sin(Time.get_ticks_msec()*0.01), cos(Time.get_ticks_msec()*0.01), 0) * 0.5
+		
+		var current_quat = active_fish_3d.quaternion
+		var look_dir = cam_right
+		if is_fighting:
+			look_dir += Vector3(sin(Time.get_ticks_msec()*0.01), cos(Time.get_ticks_msec()*0.01), 0) * 0.5
+		
+		# Ensure look_dir is not zero before look_at
+		if look_dir.length_squared() > 0.001:
+			active_fish_3d.look_at(active_fish_3d.global_position + look_dir, Vector3.UP)
+			var target_quat = active_fish_3d.quaternion
+			active_fish_3d.quaternion = current_quat.slerp(target_quat, 6.0 * get_process_delta_time())
+		
+		if is_fighting:
+			active_fish_3d.rotation.z = sin(Time.get_ticks_msec() * 0.02) * 0.3
+			active_fish_3d.rotation.x = cos(Time.get_ticks_msec() * 0.015) * 0.1
+
+
+func _on_nearby_visual_update(fish_list: Array) -> void:
+	while nearby_fish_nodes.size() < fish_list.size():
+		var node = Node3D.new()
+		add_child(node)
+		nearby_fish_nodes.append(node)
+	
+	for i in range(nearby_fish_nodes.size()):
+		var node: Node3D = nearby_fish_nodes[i]
+		if i >= fish_list.size():
+			node.hide()
+			continue
+		
+		var f_data_2d = fish_list[i]
+		var f_id = f_data_2d.get("fish_id", "ca_thu")
+		
+		if node.get_meta("fish_id", "") != f_id:
+			for child in node.get_children(): child.queue_free()
+			var asset_path = fish_id_to_asset.get(f_id, "res://assets/sprites/ca/guppy_fish.glb")
+			var fish_scene = load(asset_path)
+			if fish_scene:
+				var fish_instance = fish_scene.instantiate()
+				fish_instance.position = Vector3.ZERO
+				fish_instance.rotation.y = PI/2
+				node.add_child(fish_instance)
+				
+				# Setup real animations from GLB
+				_setup_fish_animation(fish_instance, 1.0 + f_data_2d.speed * 0.01)
+			node.set_meta("fish_id", f_id)
+		
+		var pos_2d = Vector2(f_data_2d.x, f_data_2d.y)
+		var depth_y = lerpf(water_level_y, water_level_y - bait_max_depth_3d, bait_depth_ratio)
 		var ray_origin = camera.project_ray_origin(pos_2d)
 		var ray_normal = camera.project_ray_normal(pos_2d)
 		
-		# Prevent division by zero
-		var denom = ray_normal.dot(cam_forward)
-		if abs(denom) < 0.001: denom = 0.001
+		var target_pos = Vector3.ZERO
+		if abs(ray_normal.y) > 0.0001:
+			var t = (depth_y - ray_origin.y) / ray_normal.y
+			target_pos = ray_origin + ray_normal * t
+		else:
+			target_pos = ray_origin + ray_normal * 10.0
 		
-		var t = boat_dist / denom
-		var pos_3d = ray_origin + ray_normal * t
+		# Smooth position
+		node.global_position = node.global_position.lerp(target_pos, 5.0 * get_process_delta_time())
 		
-		active_fish_3d.global_position = pos_3d
+		var s = f_data_2d.size * 0.003
+		node.scale = node.scale.lerp(Vector3(s, s, s), 4.0 * get_process_delta_time())
 		
-		# Ensure fish is always slightly in front of the boat so boat doesn't clip it
-		active_fish_3d.global_position += cam_forward * 1.5
-		
-		# Scale: Larger for better visibility in fishing mode
-		var s = fish_data.max_size * 2.5
-		if fish_data.rarity == "legendary": s = clampf(s, 6.0, 12.0)
-		active_fish_3d.scale = Vector3(s, s, s)
-		
-		# Orientation: Side-on to camera
-		# First make it look toward a point to the side of the camera
+		# Smooth rotation
 		var cam_right = camera.global_basis.x
-		active_fish_3d.look_at(active_fish_3d.global_position + cam_right, Vector3.UP)
+		var current_quat = node.quaternion
+		var look_dir = cam_right * f_data_2d.dir
+		# Avoid zero vector look_at
+		if look_dir.length_squared() > 0.001:
+			node.look_at(node.global_position + look_dir, Vector3.UP)
+			var target_quat = node.quaternion
+			node.quaternion = current_quat.slerp(target_quat, 6.0 * get_process_delta_time())
 		
-		# Dynamic fight rotation
-		if is_fighting:
-			active_fish_3d.rotation.z += sin(Time.get_ticks_msec() * 0.02) * 0.5
-			active_fish_3d.rotation.y += sin(Time.get_ticks_msec() * 0.01) * 0.2
+		# Vertical tilt for nearby fish
+		var vertical_vel = sin(Time.get_ticks_msec() * 0.002 + i) # Approximation of its wave move
+		node.rotation.z = vertical_vel * 0.15 * (1.0 if f_data_2d.dir >= 0 else -1.0)
+		
+		node.show()
+
+
+func _on_fishing_child_entered(node: Node) -> void:
+	if node.has_signal("boss_visual_update"):
+		node.boss_visual_update.connect(_on_boss_visual_update)
+
+
+func _on_boss_visual_update(pos_2d: Vector2, fish_data: Object, p_visible: bool) -> void:
+	_on_visual_fish_update(pos_2d, fish_data, p_visible, true)
 
 
 func _on_bait_camera_update(x2d: float, depth_ratio: float) -> void:
@@ -482,8 +595,7 @@ func _on_period_changed(period_name: String) -> void:
 # ============ UI SCREENS ============
 
 func _open_map() -> void:
-	if state == GameState.UI_OPEN:
-		return
+	if state == GameState.UI_OPEN: return
 	state = GameState.UI_OPEN
 	AudioManager.play_ui_open()
 	var map_scene = load("res://scenes/ui/map_screen.tscn")
@@ -499,8 +611,7 @@ func _open_map() -> void:
 
 
 func _open_collection() -> void:
-	if state == GameState.UI_OPEN:
-		return
+	if state == GameState.UI_OPEN: return
 	state = GameState.UI_OPEN
 	AudioManager.play_ui_open()
 	var col_scene = load("res://scenes/ui/collection.tscn")
@@ -515,8 +626,7 @@ func _open_collection() -> void:
 
 
 func _open_market() -> void:
-	if state == GameState.UI_OPEN:
-		return
+	if state == GameState.UI_OPEN: return
 	state = GameState.UI_OPEN
 	AudioManager.play_ui_open()
 	var market_scene = load("res://scenes/ui/market.tscn")
@@ -531,8 +641,7 @@ func _open_market() -> void:
 
 
 func _open_shop() -> void:
-	if state == GameState.UI_OPEN:
-		return
+	if state == GameState.UI_OPEN: return
 	state = GameState.UI_OPEN
 	AudioManager.play_ui_open()
 	var shop_scene = load("res://scenes/ui/upgrade_shop.tscn")
@@ -553,8 +662,55 @@ func _on_zone_selected(zone_id: String) -> void:
 		return
 	var zone = ZoneDatabase.get_zone_by_id(zone_id)
 	if zone and boat:
-		# Teleport boat to zone center in 3D
 		var zone_center_2d = (zone.world_x_start + zone.world_x_end) / 2.0
 		var x_3d = (zone_center_2d / 12000.0) * world_width - world_width / 2.0
 		boat.position.x = x_3d
 		current_zone_info = zone
+
+
+func _setup_fish_animation(node: Node, anim_speed: float = 1.0) -> void:
+	var anim_player: AnimationPlayer = null
+	
+	# Tìm AnimationPlayer trong node hoặc con của nó
+	if node is AnimationPlayer:
+		anim_player = node
+	else:
+		anim_player = node.get_node_or_null("AnimationPlayer")
+		if not anim_player:
+			for child in node.get_children():
+				if child is AnimationPlayer:
+					anim_player = child
+					break
+				var deeper = child.get_node_or_null("AnimationPlayer")
+				if deeper:
+					anim_player = deeper
+					break
+	
+	if anim_player:
+		var anim_list = anim_player.get_animation_list()
+		if anim_list.is_empty():
+			return
+			
+		var anim_to_play = ""
+		
+		# Ưu tiên tìm các animation có tên liên quan đến "swim"
+		var swim_keywords = ["swim", "swimming", "move", "action"]
+		for key in swim_keywords:
+			for a in anim_list:
+				if a.to_lower().contains(key):
+					anim_to_play = a
+					break
+			if anim_to_play != "": break
+			
+		# Nếu không tìm thấy, chơi animation đầu tiên
+		if anim_to_play == "":
+			anim_to_play = anim_list[0]
+			
+		if anim_to_play != "":
+			# Đảm bảo animation lặp (loop)
+			var anim = anim_player.get_animation(anim_to_play)
+			if anim:
+				anim.loop_mode = Animation.LOOP_LINEAR
+			
+			anim_player.play(anim_to_play)
+			anim_player.speed_scale = anim_speed

@@ -30,19 +30,35 @@ func setup(data, direction: float = 1.0) -> void:
 func _process(delta: float) -> void:
 	time += delta
 	
+	var target_velocity = Vector2.ZERO
 	match state:
 		FishState.SWIMMING:
-			position.x += swim_speed * swim_direction * delta
-			position.y += sin(time * wave_speed + vertical_wave_offset) * wave_amplitude * delta
+			target_velocity.x = swim_speed * swim_direction
+			target_velocity.y = cos(time * wave_speed + vertical_wave_offset) * wave_amplitude
 		
 		FishState.ATTRACTED:
 			var dir_to_bait = (bait_position - position).normalized()
-			position += dir_to_bait * swim_speed * 0.5 * delta
+			target_velocity = dir_to_bait * swim_speed * 1.5
 			if position.distance_to(bait_position) < 20.0:
 				state = FishState.HOOKED
 		
 		FishState.FLEEING:
-			position.x += swim_speed * swim_direction * 2.0 * delta
+			target_velocity.x = swim_speed * swim_direction * 2.5
+			target_velocity.y = sin(time * 5.0) * 30.0
+	
+	# Apply movement with slight smoothing
+	position += target_velocity * delta
+	
+	# Rotation and flipping
+	if target_velocity.length() > 1.0:
+		# Flip based on horizontal direction
+		var target_scale_x = sign(target_velocity.x)
+		if target_scale_x != 0:
+			scale.x = lerp(scale.x, target_scale_x, 10.0 * delta)
+		
+		# Pitch/Tilt based on vertical velocity
+		var target_rotation = clamp(target_velocity.y / swim_speed, -0.4, 0.4)
+		rotation = lerp_angle(rotation, target_rotation * sign(scale.x), 5.0 * delta)
 	
 	queue_redraw()
 
@@ -57,46 +73,7 @@ func flee() -> void:
 
 
 func _draw() -> void:
-	if fish_data == null:
-		return
-	
-	var size = fish_data.max_size * 15.0
-	var col = fish_data.color
-	var dir = swim_direction
-	
-	# Body
-	var body_points = PackedVector2Array([
-		Vector2(-size * dir, 0),
-		Vector2(-size * 0.3 * dir, -size * 0.4),
-		Vector2(size * 0.5 * dir, -size * 0.2),
-		Vector2(size * dir, 0),
-		Vector2(size * 0.5 * dir, size * 0.2),
-		Vector2(-size * 0.3 * dir, size * 0.4),
-	])
-	draw_colored_polygon(body_points, col)
-	
-	# Tail
-	var tail_points = PackedVector2Array([
-		Vector2(-size * dir, 0),
-		Vector2(-size * 1.3 * dir, -size * 0.35),
-		Vector2(-size * 1.3 * dir, size * 0.35),
-	])
-	draw_colored_polygon(tail_points, col.darkened(0.2))
-	
-	# Fin
-	var fin_points = PackedVector2Array([
-		Vector2(0, -size * 0.3),
-		Vector2(size * 0.2 * dir, -size * 0.6),
-		Vector2(size * 0.3 * dir, -size * 0.2),
-	])
-	draw_colored_polygon(fin_points, col.lightened(0.1))
-	
-	# Eye
-	draw_circle(Vector2(size * 0.5 * dir, -size * 0.08), size * 0.1, Color.WHITE)
-	draw_circle(Vector2(size * 0.55 * dir, -size * 0.08), size * 0.05, Color.BLACK)
-	
-	# Rarity glow for epic+ fish
-	if fish_data.rarity == "epic" or fish_data.rarity == "legendary":
-		var glow_color = FishDatabase.get_rarity_color(fish_data.rarity)
-		glow_color.a = 0.15 + 0.1 * sin(time * 3.0)
-		draw_circle(Vector2.ZERO, size * 1.5, glow_color)
+	# 2D drawing disabled - replace with 3D models from assets/sprites/ca
+	# if fish_data == null:
+	# 	return
+	pass
