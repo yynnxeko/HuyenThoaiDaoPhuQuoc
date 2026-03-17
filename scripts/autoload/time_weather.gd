@@ -8,13 +8,13 @@ signal weather_changed(new_weather: String)
 signal full_moon_started()
 signal full_moon_ended()
 
-# Time settings: 1 real second = 1 game minute → 24 min = full day
-const GAME_MINUTES_PER_REAL_SECOND: float = 1.0
+# Time settings: 1 real second = 10 game minutes
+const GAME_MINUTES_PER_REAL_SECOND: float = 10.0
 
 # Current game time (0.0 - 24.0 hours)
 var game_hour: float = 6.0  # Start at sunrise (6 AM)
 var game_day: int = 1
-var moon_cycle_day: int = 0  # 0-29, full moon at 14-15
+var moon_cycle_day: int = 15  # Start with full moon for testing stars/moon
 const MOON_CYCLE_LENGTH: int = 30
 
 # Time periods
@@ -27,18 +27,18 @@ var current_weather: Weather = Weather.CLEAR
 var weather_timer: float = 0.0
 var weather_duration: float = 120.0  # seconds until next weather change
 
-# Sky colors for each period
+# Sky colors for each period (vibrant blue for day, dark for night)
 const SKY_COLORS = {
 	"dawn_top": Color(0.15, 0.05, 0.25),
 	"dawn_bottom": Color(0.95, 0.45, 0.15),
-	"morning_top": Color(0.35, 0.65, 0.95),
-	"morning_bottom": Color(0.7, 0.85, 0.95),
-	"afternoon_top": Color(0.25, 0.55, 0.9),
-	"afternoon_bottom": Color(0.5, 0.75, 0.95),
+	"morning_top": Color(0.2, 0.5, 0.8),      # Matches village
+	"morning_bottom": Color(0.65, 0.7, 0.8),   # Matches village
+	"afternoon_top": Color(0.1, 0.45, 0.85),
+	"afternoon_bottom": Color(0.6, 0.75, 0.9),
 	"evening_top": Color(0.2, 0.1, 0.3),
 	"evening_bottom": Color(0.9, 0.35, 0.1),
-	"night_top": Color(0.02, 0.02, 0.08),
-	"night_bottom": Color(0.05, 0.08, 0.18),
+	"night_top": Color(0.01, 0.01, 0.05),
+	"night_bottom": Color(0.02, 0.02, 0.08),
 }
 
 # Water colors for each period
