@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://dbxx0ajp8bgg4"]
 
-[ext_resource type="Script" uid="uid://byta400niw27c" path="res://scripts/game/village.gd" id="1_v"]
+[ext_resource type="Script" uid="uid://c2ndq2eo75f2t" path="res://scripts/game/village.gd" id="1_v"]
+[ext_resource type="Texture2D" uid="uid://bay3ak8k8pevv" path="res://assets/sprites/sky/kloppenheim_06_puresky_4k.exr" id="2_47cal"]
 [ext_resource type="PackedScene" uid="uid://bwat1qs1fxtlg" path="res://assets/sprites/village/Cloud.glb" id="2_cloud"]
 [ext_resource type="PackedScene" uid="uid://c6hoy8r6ia35d" path="res://assets/sprites/village/nha1.glb" id="3_nha1"]
 [ext_resource type="PackedScene" uid="uid://r88fj2dq7p6q" path="res://assets/sprites/village/nha2.glb" id="4_nha2"]
@@ -18,12 +19,11 @@
 [ext_resource type="PackedScene" uid="uid://dlr4ou23n3777" path="res://assets/sprites/village/ro_ca.glb" id="16_ro_ca"]
 [ext_resource type="PackedScene" uid="uid://0yojwenahw1k" path="res://assets/sprites/village/thuyen_thung.glb" id="17_thuyen_thung"]
 
-[sub_resource type="ProceduralSkyMaterial" id="SkyMat_v"]
-sky_top_color = Color(0.2, 0.5, 0.8, 1)
-sky_horizon_color = Color(0.65, 0.7, 0.8, 1)
+[sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_rswfu"]
+panorama = ExtResource("2_47cal")
 
 [sub_resource type="Sky" id="Sky_v"]
-sky_material = SubResource("SkyMat_v")
+sky_material = SubResource("PanoramaSkyMaterial_rswfu")
 
 [sub_resource type="Environment" id="Env_v"]
 background_mode = 2
@@ -75,14 +75,22 @@ size = Vector3(100, 1, 20)
 [sub_resource type="ShaderMaterial" id="OceanMat"]
 render_priority = 0
 shader = ExtResource("13_ocean")
+shader_parameter/noise_scale = 0.001
+shader_parameter/time_scale = 1.0
+shader_parameter/spawn_pos = Vector3(0, 0, 0)
+shader_parameter/sun_color = Color(1, 0.7, 0.3, 1)
+shader_parameter/sun_factor = 0.5
 shader_parameter/shallow_color = Color(0.1, 0.6, 0.7, 0.85)
 shader_parameter/deep_color = Color(0.02, 0.15, 0.35, 0.95)
 shader_parameter/foam_color = Color(0.9, 0.95, 1, 0.6)
-shader_parameter/wave_speed = 0.15
-shader_parameter/wave_height = 0.15
-shader_parameter/wave_frequency = 0.6
-shader_parameter/foam_amount = 0.1
-shader_parameter/time_scale = 1.0
+shader_parameter/s_amplitude = 0.25
+shader_parameter/s_wavelength = 40.0
+shader_parameter/s_speed = 1.3
+shader_parameter/s_steepness = 0.4
+shader_parameter/d_amplitude = 2.5
+shader_parameter/d_wavelength = 200.0
+shader_parameter/d_speed = 0.8
+shader_parameter/d_steepness = 0.6
 
 [sub_resource type="PlaneMesh" id="OceanMesh"]
 size = Vector2(100, 40)
