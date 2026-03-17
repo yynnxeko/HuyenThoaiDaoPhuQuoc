@@ -27,11 +27,27 @@ var bait_camera_fov: float = 70.0
 var bait_x2d: float = 6000.0
 var bait_depth_ratio: float = 0.0
 
+# Underwater layers
+var underwater_plane: MeshInstance3D = null
+var underwater_props_root: Node3D = null
+var seaweed_nodes: Array = []
+var bubble_nodes: Array = []
+var bubble_spawn_timer: float = 0.0
+var bubble_spawn_interval: float = 1.6
+
+# Underwater assets (optional)
+var underwater_prop_catalog = [
+	{"type": "coral", "path": "res://assets/coral.glb"},
+	{"type": "rock", "path": "res://assets/rock.glb"},
+	{"type": "seaweed", "path": "res://assets/seaweed.glb"}
+]
+
 # References (set in _ready from scene tree)
 var boat: Node3D = null
 var camera: Camera3D = null
 var hud: Control = null
 var fishing_mode_node = null
+var ocean_mesh: Node3D = null
 
 # Fishing
 var fishing_spots: Array = []
@@ -74,12 +90,17 @@ func _ready() -> void:
 	# Get references
 	boat = $Boat3D
 	camera = $Camera3D
+	ocean_mesh = $OceanMesh
 	if camera:
 		default_camera_fov = camera.fov
 	hud_canvas = $HUD
 	hud = $HUD/HUDControl
 	sun_light = $DirectionalLight3D
 	env = $WorldEnvironment
+	_sync_water_level()
+
+	# Underwater layers
+	_setup_underwater_layers()
 	
 	# Generate fishing spots
 	_generate_fishing_spots()
@@ -107,6 +128,12 @@ func _process(delta: float) -> void:
 	
 	# Update decorative fish
 	_update_decorative_fish(delta)
+	_update_seaweed(delta)
+	_update_bubbles(delta)
+	_sync_water_level()
+	
+	# Update sương mù (Fog) dưới nước
+	_update_underwater_effects(delta)
 	
 	# Zone check
 	_check_zone()
@@ -221,6 +248,28 @@ func _update_lighting(_delta: float) -> void:
 			sun_light.light_energy = 0.2
 
 
+# ==========================================
+# THÊM MỚI: HIỆU ỨNG SƯƠNG MŨ DƯỚI NƯỚC (FOG)
+# ==========================================
+func _update_underwater_effects(delta: float) -> void:
+	if env and env.environment and camera:
+		var cam_y = camera.global_position.y
+		if cam_y < water_level_y:
+			# Camera chìm dưới nước: Bật Fog và tính toán độ đục
+			var depth = water_level_y - cam_y
+			# Càng sâu sương mù càng đặc (chỉnh các số này để đổi độ đục)
+			var target_density = clampf(0.015 + (depth * 0.01), 0.015, 0.1) 
+			
+			env.environment.fog_enabled = true
+			env.environment.fog_light_color = Color(0.05, 0.35, 0.5) # Màu đại dương sâu
+			env.environment.fog_density = lerpf(env.environment.fog_density, target_density, delta * 3.0)
+		else:
+			# Camera ngoi lên mặt nước: Tan sương mù dần
+			env.environment.fog_density = lerpf(env.environment.fog_density, 0.0, delta * 5.0)
+			if env.environment.fog_density < 0.001:
+				env.environment.fog_enabled = false
+
+
 func _check_zone() -> void:
 	if boat == null:
 		return
@@ -232,6 +281,14 @@ func _check_zone() -> void:
 		AudioManager.play_zone_enter()
 		if hud and hud.has_method("show_zone_name"):
 			hud.show_zone_name(current_zone_info.name_vn)
+		_respawn_underwater_props()
+
+
+func _sync_water_level() -> void:
+	if ocean_mesh:
+		water_level_y = ocean_mesh.global_position.y
+		if underwater_plane and is_instance_valid(underwater_plane):
+			underwater_plane.position.y = water_level_y - 12.0 # Kéo đáy biển sâu xuống tí xíu
 
 
 func _generate_fishing_spots() -> void:
@@ -264,6 +321,192 @@ func _create_spot_marker(pos: Vector3) -> void:
 	marker.material_override = mat
 	marker.position = pos
 	add_child(marker)
+
+
+func _setup_underwater_layers() -> void:
+	_create_underwater_plane()
+	_respawn_underwater_props()
+
+
+func _create_underwater_plane() -> void:
+	if underwater_plane and is_instance_valid(underwater_plane):
+		underwater_plane.queue_free()
+	underwater_plane = MeshInstance3D.new()
+	underwater_plane.name = "UnderwaterDepthPlane"
+	var plane = PlaneMesh.new()
+	plane.size = Vector2(300, 80)
+	plane.subdivide_width = 20
+	plane.subdivide_depth = 10
+	underwater_plane.mesh = plane
+	
+	# Đã chỉnh sửa: Bỏ độ trong suốt, làm đáy biển có màu cát sẫm và có độ nhám 
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(0.08, 0.3, 0.45, 1.0) # Màu đáy sẫm hơn, không bệt
+	mat.roughness = 0.9 # Nhám nhám giống cát biển
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	
+	underwater_plane.material_override = mat
+	underwater_plane.position = Vector3(0, water_level_y - 12.0, 0)
+	add_child(underwater_plane)
+
+
+func _respawn_underwater_props() -> void:
+	if underwater_props_root and is_instance_valid(underwater_props_root):
+		underwater_props_root.queue_free()
+	underwater_props_root = Node3D.new()
+	underwater_props_root.name = "UnderwaterProps"
+	add_child(underwater_props_root)
+	seaweed_nodes.clear()
+	_spawn_underwater_props()
+
+
+func _get_zone_profile() -> Dictionary:
+	var zone_id := "" if current_zone_info == null else str(current_zone_info.id).to_lower()
+	if zone_id.find("coast") != -1 or zone_id.find("shore") != -1 or zone_id.find("coastal") != -1:
+		return {"count": 30, "weights": {"seaweed": 0.5, "rock": 0.4, "coral": 0.1}}
+	if zone_id.find("reef") != -1:
+		return {"count": 35, "weights": {"coral": 0.6, "seaweed": 0.25, "rock": 0.15}}
+	if zone_id.find("offshore") != -1:
+		return {"count": 18, "weights": {"rock": 0.6, "seaweed": 0.3, "coral": 0.1}}
+	if zone_id.find("deep") != -1 or zone_id.find("abyss") != -1:
+		return {"count": 10, "weights": {"rock": 0.7, "seaweed": 0.2, "coral": 0.1}}
+	return {"count": 24, "weights": {"seaweed": 0.4, "rock": 0.4, "coral": 0.2}}
+
+
+func _pick_underwater_prop(weights: Dictionary) -> Dictionary:
+	var available: Array = []
+	for item in underwater_prop_catalog:
+		var scene = load(item["path"])
+		if scene:
+			available.append({"type": item["type"], "scene": scene})
+		else:
+			available.append({"type": item["type"], "scene": null})
+	if available.is_empty():
+		return {}
+	var total_weight := 0.0
+	for item in available:
+		total_weight += float(weights.get(item.type, 0.0))
+	if total_weight <= 0.0:
+		return available.pick_random()
+	var roll = randf() * total_weight
+	var acc = 0.0
+	for item in available:
+		acc += float(weights.get(item.type, 0.0))
+		if roll <= acc:
+			return item
+	return available[0]
+
+
+func _spawn_underwater_props() -> void:
+	var profile = _get_zone_profile()
+	var count = int(profile.get("count", 24))
+	var weights: Dictionary = profile.get("weights", {})
+
+	for i in range(count):
+		var picked = _pick_underwater_prop(weights)
+		if picked.is_empty():
+			return
+		var scene: PackedScene = picked["scene"]
+		var p: Node3D = null
+		if scene:
+			p = scene.instantiate()
+		else:
+			p = _create_underwater_fallback(str(picked["type"]))
+		underwater_props_root.add_child(p)
+
+		p.position = Vector3(
+			randf_range(-world_width / 2.0, world_width / 2.0),
+			water_level_y - randf_range(3.0, 11.0), # Rải độ sâu ra chút
+			randf_range(-20.0, 20.0)
+		)
+
+		var s = randf_range(0.5, 2.0)
+		p.scale = Vector3(s, s, s)
+
+		if picked["type"] == "seaweed":
+			seaweed_nodes.append(p)
+
+
+func _create_underwater_fallback(kind: String) -> Node3D:
+	var mesh_instance = MeshInstance3D.new()
+	var mat = StandardMaterial3D.new()
+	
+	# Đã chỉnh sửa: Phối lại màu dịu mắt hơn, thêm độ nhám để trông bớt giống cục nhựa
+	mat.roughness = 0.8 
+	
+	if kind == "coral":
+		var mesh = SphereMesh.new()
+		mesh.radius = 0.4
+		mesh.height = 0.8
+		mesh_instance.mesh = mesh
+		mat.albedo_color = Color(0.75, 0.4, 0.5, 1.0)
+	elif kind == "seaweed":
+		var mesh = CapsuleMesh.new()
+		mesh.radius = 0.12
+		mesh.height = 1.2
+		mesh_instance.mesh = mesh
+		mat.albedo_color = Color(0.15, 0.45, 0.3, 1.0)
+	else:
+		var mesh = BoxMesh.new()
+		mesh.size = Vector3(0.8, 0.5, 0.6)
+		mesh_instance.mesh = mesh
+		mat.albedo_color = Color(0.2, 0.35, 0.4, 1.0)
+		
+	mesh_instance.material_override = mat
+	var wrapper = Node3D.new()
+	wrapper.add_child(mesh_instance)
+	return wrapper
+
+
+func _update_seaweed(_delta: float) -> void:
+	for weed in seaweed_nodes:
+		if weed == null:
+			continue
+		weed.rotation.z = sin(Time.get_ticks_msec() * 0.001 + weed.position.x) * 0.1
+
+
+func _spawn_bubble() -> void:
+	var b = MeshInstance3D.new()
+	var sphere = SphereMesh.new()
+	sphere.radius = randf_range(0.05, 0.15)
+	b.mesh = sphere
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(0.7, 0.9, 1.0, 0.6)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	b.material_override = mat
+	add_child(b)
+
+	b.position = Vector3(
+		randf_range(-10.0, 10.0),
+		water_level_y - 5.0,
+		randf_range(-5.0, 5.0)
+	)
+
+	bubble_nodes.append({
+		"node": b,
+		"speed": randf_range(0.6, 1.6),
+		"life": randf_range(3.0, 6.0)
+	})
+
+
+func _update_bubbles(delta: float) -> void:
+	bubble_spawn_timer += delta
+	if bubble_spawn_timer >= bubble_spawn_interval:
+		bubble_spawn_timer = 0.0
+		_spawn_bubble()
+
+	for i in range(bubble_nodes.size() - 1, -1, -1):
+		var data = bubble_nodes[i]
+		var node: Node3D = data["node"]
+		if node == null:
+			bubble_nodes.remove_at(i)
+			continue
+		data["life"] = float(data["life"]) - delta
+		node.position.y += float(data["speed"]) * delta
+		bubble_nodes[i] = data
+		if float(data["life"]) <= 0.0 or node.position.y > water_level_y + 1.0:
+			node.queue_free()
+			bubble_nodes.remove_at(i)
 
 
 func _spawn_decorative_fish() -> void:
@@ -432,7 +675,6 @@ func _on_visual_fish_update(pos_2d: Vector2, fish_data, p_visible: bool, is_figh
 		add_child(active_fish_3d)
 		active_fish_3d.add_child(fish_instance)
 		
-		# Setup real animations from GLB
 		_setup_fish_animation(fish_instance, 1.2)
 		
 		fish_instance.position = Vector3.ZERO
@@ -446,45 +688,69 @@ func _on_visual_fish_update(pos_2d: Vector2, fish_data, p_visible: bool, is_figh
 		var depth_y = lerpf(water_level_y, water_level_y - bait_max_depth_3d, bait_depth_ratio) - 1.5
 		var cam_forward = -camera.global_basis.z
 		
-		var target_pos = Vector3.ZERO
+		# Vị trí gốc của cục mồi
+		var base_target_pos = Vector3.ZERO
 		if abs(ray_normal.y) > 0.0001:
 			var t = (depth_y - ray_origin.y) / ray_normal.y
-			target_pos = ray_origin + ray_normal * t
+			base_target_pos = ray_origin + ray_normal * t
 		else:
-			target_pos = ray_origin + ray_normal * 10.0
+			base_target_pos = ray_origin + ray_normal * 10.0
 		
-		target_pos += cam_forward * 0.5
+		base_target_pos += cam_forward * 0.5
+		var final_target_pos = base_target_pos
+		var time_sec = Time.get_ticks_msec() * 0.001
 		
-		# Smooth position follow
-		var follow_speed = 8.0 if is_fighting else 4.0
-		active_fish_3d.global_position = active_fish_3d.global_position.lerp(target_pos, follow_speed * get_process_delta_time())
+		# ==========================================
+		# LOGIC DI CHUYỂN: VỜN MỒI & CẮN CÂU
+		# ==========================================
+		if is_fighting:
+			# Đã cắn câu: Giãy giụa loạn xạ quanh trục mồi
+			final_target_pos += Vector3(sin(time_sec * 15.0), cos(time_sec * 20.0), sin(time_sec * 12.0)) * 0.5
+		else:
+			# VỜN MỒI: Lượn vòng tròn và nhấp nhô thăm dò
+			var circle_radius = 1.2 # Bán kính vòng lượn
+			var circling_speed = 2.5 # Tốc độ bơi quanh mồi
+			# Hiệu ứng lao vào dạt ra (darting)
+			var darting = sin(time_sec * 4.0) * 0.6 
+			
+			var offset_x = cos(time_sec * circling_speed) * (circle_radius + darting)
+			var offset_z = sin(time_sec * circling_speed) * (circle_radius + darting)
+			var offset_y = sin(time_sec * 3.0) * 0.3 # Nhấp nhô lên xuống
+			
+			final_target_pos += Vector3(offset_x, offset_y, offset_z)
+
+		# Nội suy di chuyển mượt mà
+		var follow_speed = 12.0 if is_fighting else 4.0
+		active_fish_3d.global_position = active_fish_3d.global_position.lerp(final_target_pos, follow_speed * get_process_delta_time())
 		
+		# Scale kích thước cá
 		var s = fish_data.max_size * 0.1
 		if fish_data.rarity == "legendary": s = clampf(s, 0.3, 0.75)
 		active_fish_3d.scale = active_fish_3d.scale.lerp(Vector3(s, s, s), 5.0 * get_process_delta_time())
 		
-		# Smooth orientation
-		var cam_right = camera.global_basis.x
-		var look_target = active_fish_3d.global_position + cam_right
-		# In fighting mode, make it more erratic
-		if is_fighting:
-			look_target += Vector3(sin(Time.get_ticks_msec()*0.01), cos(Time.get_ticks_msec()*0.01), 0) * 0.5
-		
+		# ==========================================
+		# LOGIC XOAY HƯỚNG MẶT CÁ
+		# ==========================================
 		var current_quat = active_fish_3d.quaternion
-		var look_dir = cam_right
-		if is_fighting:
-			look_dir += Vector3(sin(Time.get_ticks_msec()*0.01), cos(Time.get_ticks_msec()*0.01), 0) * 0.5
+		# Cá tự động nhìn theo hướng nó đang di chuyển (rất tự nhiên khi bơi lượn)
+		var look_dir = final_target_pos - active_fish_3d.global_position
 		
-		# Ensure look_dir is not zero before look_at
+		if is_fighting:
+			# Nếu đang giãy, hướng mặt cũng phải giật giật
+			look_dir += Vector3(sin(time_sec * 25.0), cos(time_sec * 25.0), 0) * 1.0
+			
 		if look_dir.length_squared() > 0.001:
 			active_fish_3d.look_at(active_fish_3d.global_position + look_dir, Vector3.UP)
 			var target_quat = active_fish_3d.quaternion
-			active_fish_3d.quaternion = current_quat.slerp(target_quat, 6.0 * get_process_delta_time())
+			active_fish_3d.quaternion = current_quat.slerp(target_quat, (10.0 if is_fighting else 5.0) * get_process_delta_time())
 		
+		# Tạo độ nghiêng (Roll/Pitch) cho thêm phần sống động
 		if is_fighting:
-			active_fish_3d.rotation.z = sin(Time.get_ticks_msec() * 0.02) * 0.3
-			active_fish_3d.rotation.x = cos(Time.get_ticks_msec() * 0.015) * 0.1
-
+			active_fish_3d.rotation.z = sin(time_sec * 20.0) * 0.4 # Lật mình
+			active_fish_3d.rotation.x = cos(time_sec * 15.0) * 0.2
+		else:
+			# Nghiêng người nhẹ khi ôm cua bơi vòng tròn
+			active_fish_3d.rotation.z = sin(time_sec * 2.5) * 0.15
 
 func _on_nearby_visual_update(fish_list: Array) -> void:
 	while nearby_fish_nodes.size() < fish_list.size():
