@@ -30,19 +30,35 @@ func setup(data, direction: float = 1.0) -> void:
 func _process(delta: float) -> void:
 	time += delta
 	
+	var target_velocity = Vector2.ZERO
 	match state:
 		FishState.SWIMMING:
-			position.x += swim_speed * swim_direction * delta
-			position.y += sin(time * wave_speed + vertical_wave_offset) * wave_amplitude * delta
+			target_velocity.x = swim_speed * swim_direction
+			target_velocity.y = cos(time * wave_speed + vertical_wave_offset) * wave_amplitude
 		
 		FishState.ATTRACTED:
 			var dir_to_bait = (bait_position - position).normalized()
-			position += dir_to_bait * swim_speed * 0.5 * delta
+			target_velocity = dir_to_bait * swim_speed * 1.5
 			if position.distance_to(bait_position) < 20.0:
 				state = FishState.HOOKED
 		
 		FishState.FLEEING:
-			position.x += swim_speed * swim_direction * 2.0 * delta
+			target_velocity.x = swim_speed * swim_direction * 2.5
+			target_velocity.y = sin(time * 5.0) * 30.0
+	
+	# Apply movement with slight smoothing
+	position += target_velocity * delta
+	
+	# Rotation and flipping
+	if target_velocity.length() > 1.0:
+		# Flip based on horizontal direction
+		var target_scale_x = sign(target_velocity.x)
+		if target_scale_x != 0:
+			scale.x = lerp(scale.x, target_scale_x, 10.0 * delta)
+		
+		# Pitch/Tilt based on vertical velocity
+		var target_rotation = clamp(target_velocity.y / swim_speed, -0.4, 0.4)
+		rotation = lerp_angle(rotation, target_rotation * sign(scale.x), 5.0 * delta)
 	
 	queue_redraw()
 

@@ -659,35 +659,43 @@ func _update_nearby_fish(delta: float) -> void:
 			fish["cue_timer"] = fish.get("cue_timer", 0.0) + delta
 			if cue == "approach":
 				var dir_to_hook = hook_pos.x - fish["x"]
-				fish["x"] += sign(dir_to_hook) * fish["speed"] * 0.6 * delta
-				fish["y"] = lerp(fish["y"], hook_pos.y + randf_range(-15, 15), delta * 0.7)
-				fish["tail_amp"] = lerp(fish.get("tail_amp", 1.0), 1.1, 0.1)
+				# Update direction based on target
+				if abs(dir_to_hook) > 10:
+					fish["dir"] = sign(dir_to_hook)
+				
+				var approach_speed = fish["speed"] * 0.7
+				fish["x"] = move_toward(fish["x"], hook_pos.x - fish["dir"] * 30.0, approach_speed * delta)
+				fish["y"] = lerp(fish["y"], hook_pos.y + sin(wave_time * 2.0) * 10.0, 0.8 * delta)
+				fish["tail_amp"] = lerp(fish.get("tail_amp", 1.0), 1.25, 0.1)
 			elif cue == "circle":
-				fish["circle_angle"] = fish.get("circle_angle", 0.0) + delta * 1.5
+				fish["circle_angle"] = fish.get("circle_angle", 0.0) + delta * (1.2 + randf() * 0.4)
 				var radius = fish.get("circle_radius", 40.0)
-				var target = hook_pos + Vector2(cos(fish["circle_angle"]) * radius, sin(fish["circle_angle"]) * radius * 0.6)
-				fish["x"] = lerp(fish["x"], target.x, 0.1)
-				fish["y"] = lerp(fish["y"], target.y, 0.1)
-				fish["tail_amp"] = lerp(fish.get("tail_amp", 1.0), 1.2, 0.1)
+				var target = hook_pos + Vector2(cos(fish["circle_angle"]) * radius, sin(fish["circle_angle"]) * radius * 0.5)
+				fish["x"] = lerp(fish["x"], target.x, 1.2 * delta)
+				fish["y"] = lerp(fish["y"], target.y, 1.2 * delta)
+				fish["dir"] = sign(cos(fish["circle_angle"] + 0.1)) # Face movement direction
+				fish["tail_amp"] = lerp(fish.get("tail_amp", 1.0), 1.3, 0.1)
 			elif cue == "doubt":
-				fish["doubt_phase"] = fish.get("doubt_phase", 0.0) + delta * 3.2
-				var wobble = sin(fish["doubt_phase"]) * 35.0
-				var target = hook_pos + Vector2(wobble, randf_range(-10, 10))
-				fish["x"] = lerp(fish["x"], target.x, 0.08)
-				fish["y"] = lerp(fish["y"], target.y, 0.08)
-				fish["tail_amp"] = lerp(fish.get("tail_amp", 1.0), 1.35, 0.12)
+				fish["doubt_phase"] = fish.get("doubt_phase", 0.0) + delta * 2.5
+				var wobble = sin(fish["doubt_phase"]) * 45.0
+				var target = hook_pos + Vector2(wobble - fish["dir"] * 50.0, sin(wave_time) * 20.0)
+				fish["x"] = lerp(fish["x"], target.x, 0.6 * delta)
+				fish["y"] = lerp(fish["y"], target.y, 0.6 * delta)
+				fish["tail_amp"] = lerp(fish.get("tail_amp", 1.0), 1.4, 0.1)
 			elif cue == "near_bite":
-				fish["circle_angle"] = fish.get("circle_angle", 0.0) + delta * 2.6
-				var radius2 = max(18.0, fish.get("circle_radius", 40.0) * 0.6)
-				var target2 = hook_pos + Vector2(cos(fish["circle_angle"]) * radius2, sin(fish["circle_angle"]) * radius2 * 0.4)
-				fish["x"] = lerp(fish["x"], target2.x, 0.18)
-				fish["y"] = lerp(fish["y"], target2.y, 0.18)
+				fish["circle_angle"] = fish.get("circle_angle", 0.0) + delta * 3.0
+				var radius2 = max(15.0, fish.get("circle_radius", 40.0) * 0.5)
+				var target2 = hook_pos + Vector2(cos(fish["circle_angle"]) * radius2, sin(fish["circle_angle"]) * radius2 * 0.3)
+				fish["x"] = lerp(fish["x"], target2.x, 2.5 * delta)
+				fish["y"] = lerp(fish["y"], target2.y, 2.5 * delta)
+				fish["dir"] = sign(cos(fish["circle_angle"] + 0.1))
 				fish["tail_amp"] = lerp(fish.get("tail_amp", 1.0), 1.8, 0.2)
 		else:
-			# Normal swimming
-			fish["x"] += fish["speed"] * fish["dir"] * delta
-			fish["y"] = fish["base_y"] + sin(wave_time * 1.5 + fish["wave_phase"]) * 12.0
-			fish["tail_amp"] = lerp(fish.get("tail_amp", 1.0), 1.0, 0.08)
+			# Normal swimming with organic drift
+			var drift = sin(wave_time * 0.4 + fish["wave_phase"]) * 15.0 * delta
+			fish["x"] += (fish["speed"] * fish["dir"] * delta) + drift
+			fish["y"] = fish["base_y"] + sin(wave_time * 1.2 + fish["wave_phase"]) * 18.0
+			fish["tail_amp"] = lerp(fish.get("tail_amp", 1.0), 1.0, 0.1)
 		
 		# Bait movement attracts fish
 		if state == FishingState.WAITING and bait_attract_strength > 0.0 and not fish["flee"]:
