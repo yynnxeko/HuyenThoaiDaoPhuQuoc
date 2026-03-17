@@ -36,11 +36,21 @@ var bubble_nodes: Array = []
 var bubble_spawn_timer: float = 0.0
 var bubble_spawn_interval: float = 1.6
 
+# Dynamic Chunk Loading
+var spawned_chunks: Dictionary = {} # {chunk_index: Node3D}
+const CHUNK_SIZE: float = 30.0
+const LOAD_RADIUS: int = 1 # Tải khối hiện tại và 1 khối kế bên
+var last_chunk_index: int = -999
+
 # Underwater assets (optional)
 var underwater_prop_catalog = [
 	{"type": "coral", "path": "res://assets/coral.glb"},
 	{"type": "rock", "path": "res://assets/sprites/rock/river_rock.glb"},
-	{"type": "seaweed", "path": "res://assets/sprites/seaweed/sea_weed.glb"}
+	{"type": "seaweed", "path": "res://assets/sprites/seaweed/sea_weed.glb"},
+	{"type": "coral_main", "path": "res://assets/sprites/sanho/coral.glb"},
+	{"type": "coral_piece", "path": "res://assets/sprites/sanho/coral_piece.glb"},
+	{"type": "starfish", "path": "res://assets/sprites/saobien/starfish.glb"},
+	{"type": "deep_coral", "path": "res://assets/sprites/sanho/deep-sea_corals.glb"}
 ]
 
 # References (set in _ready from scene tree)
@@ -160,6 +170,9 @@ func _process(delta: float) -> void:
 	
 	# Zone check
 	_check_zone()
+	
+	# Cập nhật chunk dựa trên vị trí tàu
+	_update_dynamic_chunks()
 
 
 func _process_navigation(_delta: float) -> void:
@@ -375,7 +388,7 @@ func _check_zone() -> void:
 		AudioManager.play_zone_enter()
 		if hud and hud.has_method("show_zone_name"):
 			hud.show_zone_name(current_zone_info.name_vn)
-		_respawn_underwater_props()
+		# Không gọi _respawn_underwater_props() nữa vì đã có hệ thống chunk tự động
 
 
 func _sync_water_level() -> void:
@@ -482,20 +495,128 @@ func _respawn_underwater_props() -> void:
 	underwater_props_root.name = "UnderwaterProps"
 	add_child(underwater_props_root)
 	seaweed_nodes.clear()
-	_spawn_underwater_props()
+	# Các khối sẽ tự động được load trong _process thông qua _update_dynamic_chunks
+
+# ==========================================
+# HỆ THỐNG TẢI MAP THEO CHUNK (TỐI ƯU LAG)
+# ==========================================
+func _update_dynamic_chunks() -> void:
+	if boat == null: return
+	
+	var current_chunk = int(floor(boat.position.x / CHUNK_SIZE))
+	
+	# Chỉ xử lý nếu tàu đã sang chunk mới
+	if current_chunk != last_chunk_index:
+		last_chunk_index = current_chunk
+		
+		# 1. Tạo các chunk mới trong tầm nhìn (hiện tại và lân cận)
+		for i in range(current_chunk - LOAD_RADIUS, current_chunk + LOAD_RADIUS + 1):
+			if not spawned_chunks.has(i):
+				_spawn_chunk(i)
+		
+		# 2. Xóa các chunk đã ở quá xa
+		var chunks_to_remove = []
+		for idx in spawned_chunks.keys():
+			if abs(idx - current_chunk) > LOAD_RADIUS + 1:
+				chunks_to_remove.append(idx)
+		
+		for idx in chunks_to_remove:
+			var chunk_node = spawned_chunks[idx]
+			if is_instance_valid(chunk_node):
+				chunk_node.queue_free()
+			spawned_chunks.erase(idx)
+			
+		# Cập nhật danh sách rong biển để chạy hiệu ứng animation
+		_sync_seaweed_nodes()
+
+func _spawn_chunk(idx: int) -> void:
+	var chunk_node = Node3D.new()
+	chunk_node.name = "Chunk_" + str(idx)
+	underwater_props_root.add_child(chunk_node)
+	spawned_chunks[idx] = chunk_node
+	
+	var profile = _get_zone_profile()
+	var count_per_chunk = 8 # Số lượng cố định mỗi khối để ổn định hiệu năng
+	var weights: Dictionary = profile.get("weights", {})
+	
+	var start_x = idx * CHUNK_SIZE
+	var end_x = start_x + CHUNK_SIZE
+	
+	for i in range(count_per_chunk):
+		var picked = _pick_underwater_prop(weights)
+		if picked.is_empty(): continue
+		
+		var scene: PackedScene = picked["scene"]
+		var p: Node3D = scene.instantiate() if scene else _create_underwater_fallback(str(picked["type"]))
+		chunk_node.add_child(p)
+		
+		if scene:
+			_setup_node_animation(p, randf_range(0.8, 1.2))
+		
+		var spawn_x = randf_range(start_x, end_x)
+		var spawn_z = randf_range(-25.0, 25.0)
+		var noise_y = seabed_noise.get_noise_2d(spawn_x, spawn_z) * 5.0
+		var ground_y = (water_level_y - 12.0) + noise_y
+		
+		p.position = Vector3(spawn_x, ground_y, spawn_z)
+		p.set_meta("type", str(picked["type"]))
+		
+		# Tinh chỉnh kích thước đồng bộ
+		var s = randf_range(0.5, 2.0)
+		var type = str(picked["type"])
+		if type == "starfish": s = randf_range(0.1, 0.3)
+		elif type == "coral_main": s = randf_range(0.05, 0.15)
+		elif type.contains("coral"): s = randf_range(0.1, 0.4)
+		elif type == "seaweed": s = randf_range(0.6, 1.5)
+		elif type == "rock": s = randf_range(0.8, 2.5)
+		p.scale = Vector3(s, s, s)
+		p.rotation.y = randf() * TAU
+
+func _sync_seaweed_nodes() -> void:
+	seaweed_nodes.clear()
+	for chunk in spawned_chunks.values():
+		for p in chunk.get_children():
+			if p.get_meta("type", "") == "seaweed":
+				seaweed_nodes.append(p)
+
 
 
 func _get_zone_profile() -> Dictionary:
 	var zone_id := "" if current_zone_info == null else str(current_zone_info.id).to_lower()
+	
+	# Định nghĩa base weights cho mọi khu vực để đảm bảo loại nào cũng có thể xuất hiện
+	var weights = {
+		"seaweed": 0.2,
+		"rock": 0.2,
+		"coral": 0.1,
+		"coral_main": 0.1,
+		"coral_piece": 0.1,
+		"starfish": 0.1,
+		"deep_coral": 0.05
+	}
+	var count = 30
+	
+	# Tinh chỉnh theo khu vực
 	if zone_id.find("coast") != -1 or zone_id.find("shore") != -1 or zone_id.find("coastal") != -1:
-		return {"count": 30, "weights": {"seaweed": 0.5, "rock": 0.4, "coral": 0.1}}
-	if zone_id.find("reef") != -1:
-		return {"count": 35, "weights": {"coral": 0.6, "seaweed": 0.25, "rock": 0.15}}
-	if zone_id.find("offshore") != -1:
-		return {"count": 18, "weights": {"rock": 0.6, "seaweed": 0.3, "coral": 0.1}}
-	if zone_id.find("deep") != -1 or zone_id.find("abyss") != -1:
-		return {"count": 10, "weights": {"rock": 0.7, "seaweed": 0.2, "coral": 0.1}}
-	return {"count": 24, "weights": {"seaweed": 0.4, "rock": 0.4, "coral": 0.2}}
+		count = 35
+		weights["seaweed"] = 0.5
+		weights["starfish"] = 0.2
+	elif zone_id.find("reef") != -1:
+		count = 45
+		weights["coral_main"] = 0.4
+		weights["coral"] = 0.3
+		weights["starfish"] = 0.1
+	elif zone_id.find("offshore") != -1 or zone_id.find("open") != -1:
+		count = 32
+		weights["coral_piece"] = 0.3
+		weights["starfish"] = 0.2
+		weights["rock"] = 0.3
+	elif zone_id.find("abyss") != -1 or zone_id.find("deep") != -1:
+		count = 25
+		weights["deep_coral"] = 0.4
+		weights["rock"] = 0.4
+	
+	return {"count": count, "weights": weights}
 
 
 func _pick_underwater_prop(weights: Dictionary) -> Dictionary:
@@ -522,37 +643,9 @@ func _pick_underwater_prop(weights: Dictionary) -> Dictionary:
 	return available[0]
 
 
+# Hàm cũ đã được thay thế bởi hệ thống chunk
 func _spawn_underwater_props() -> void:
-	var profile = _get_zone_profile()
-	var count = int(profile.get("count", 24))
-	var weights: Dictionary = profile.get("weights", {})
-
-	for i in range(count):
-		var picked = _pick_underwater_prop(weights)
-		if picked.is_empty():
-			return
-		var scene: PackedScene = picked["scene"]
-		var p: Node3D = null
-		if scene:
-			p = scene.instantiate()
-			_setup_node_animation(p, randf_range(0.8, 1.2))
-		else:
-			p = _create_underwater_fallback(str(picked["type"]))
-		underwater_props_root.add_child(p)
-
-		var spawn_x = randf_range(-world_width / 2.0, world_width / 2.0)
-		var spawn_z = randf_range(-25.0, 25.0)
-		# Tính toán độ cao dựa trên noise để nằm đúng trên mặt đất
-		var noise_y = seabed_noise.get_noise_2d(spawn_x, spawn_z) * 5.0
-		var ground_y = (water_level_y - 12.0) + noise_y
-		
-		p.position = Vector3(spawn_x, ground_y, spawn_z)
-
-		var s = randf_range(0.5, 2.0)
-		p.scale = Vector3(s, s, s)
-
-		if picked["type"] == "seaweed":
-			seaweed_nodes.append(p)
+	pass
 
 
 func _create_underwater_fallback(kind: String) -> Node3D:
