@@ -32,6 +32,7 @@ var boat: Node3D = null
 var camera: Camera3D = null
 var hud: Control = null
 var fishing_mode_node = null
+var ocean: MeshInstance3D = null
 
 # Fishing
 var fishing_spots: Array = []
@@ -84,6 +85,11 @@ func _ready() -> void:
 	hud = $HUD/HUDControl
 	sun_light = $DirectionalLight3D
 	env = $WorldEnvironment
+	ocean = $OceanMesh
+	
+	if ocean and camera:
+		if ocean.has_method("set"): 
+			ocean.follow_camera = camera
 	
 	_setup_moon_and_stars()
 	
@@ -236,6 +242,20 @@ func _update_lighting(_delta: float) -> void:
 		if sky_mat:
 			sky_mat.sky_top_color = TimeWeather.get_sky_top_color()
 			sky_mat.sky_horizon_color = TimeWeather.get_sky_bottom_color()
+	
+	# Update Ocean Shader with lighting
+	if boat and boat.ocean_manager:
+		var ocean_mesh = boat.ocean_manager.get_child(0) as MeshInstance3D
+		if ocean_mesh and ocean_mesh.material_override:
+			var mat = ocean_mesh.material_override as ShaderMaterial
+			if mat:
+				mat.set_shader_parameter("sun_color", sun_light.light_color)
+				# Calculate factor based on sun elevation
+				var sun_factor = clamp(1.0 - TimeWeather.get_sun_position_normalized(), 0.0, 1.0)
+				# Push factor higher during sunset/dawn
+				if period == "evening" or period == "dawn":
+					sun_factor = max(sun_factor, 0.6)
+				mat.set_shader_parameter("sun_factor", sun_factor)
 	
 	# Update Moon and Stars visibility
 	if moon_mesh:
