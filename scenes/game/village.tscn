@@ -1,10 +1,17 @@
 [gd_scene format=3 uid="uid://dbxx0ajp8bgg4"]
 
-[ext_resource type="Script" uid="uid://byta400niw27c" path="res://scripts/game/village.gd" id="1_v"]
+[ext_resource type="Script" uid="uid://c2ndq2eo75f2t" path="res://scripts/game/village.gd" id="1_v"]
 [ext_resource type="PackedScene" uid="uid://bwat1qs1fxtlg" path="res://assets/sprites/village/Cloud.glb" id="2_cloud"]
 [ext_resource type="PackedScene" uid="uid://c6hoy8r6ia35d" path="res://assets/sprites/village/nha1.glb" id="3_nha1"]
 [ext_resource type="PackedScene" uid="uid://r88fj2dq7p6q" path="res://assets/sprites/village/nha2.glb" id="4_nha2"]
 [ext_resource type="PackedScene" uid="uid://chnrl2gwcovs" path="res://assets/sprites/village/quayThit.glb" id="5_stall"]
+[ext_resource type="PackedScene" uid="uid://cckx5hpns5ey7" path="res://assets/sprites/village/ban_ca.glb" id="6_ban_ca"]
+[ext_resource type="PackedScene" uid="uid://cquqaj3pkxq7o" path="res://assets/sprites/village/ban_thit.glb" id="7_ban_thit"]
+[ext_resource type="PackedScene" uid="uid://lm0ktsuwtkru" path="res://assets/sprites/village/tho_moc.glb" id="8_tho_moc"]
+[ext_resource type="PackedScene" uid="uid://dghjwvre6ka3w" path="res://assets/sprites/village/ba_ban_rau.glb" id="9_ba_ban_rau"]
+[ext_resource type="PackedScene" uid="uid://br3m0fjmmmfj5" path="res://assets/sprites/village/sap_rau.glb" id="10_sap_rau"]
+[ext_resource type="PackedScene" uid="uid://cnavtqnxa5p4m" path="res://assets/sprites/village/tiem_tap_hoa.glb" id="11_tiem_tap_hoa"]
+[ext_resource type="PackedScene" uid="uid://bthlf36lbegt3" path="res://assets/sprites/village/nha_tho_xay.glb" id="12_nha_tho_xay"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMat_v"]
 sky_top_color = Color(0.2, 0.5, 0.8, 1)
@@ -22,7 +29,7 @@ glow_intensity = 0.8
 glow_bloom = 0.2
 
 [sub_resource type="BoxShape3D" id="NhaShape"]
-size = Vector3(19.356384, 15.282227, 15.829843)
+size = Vector3(9.68, 7.64, 7.91)
 
 [sub_resource type="BoxShape3D" id="QuayShape"]
 size = Vector3(6.470337, 5, 1.7701111)
@@ -70,47 +77,53 @@ shadow_enabled = true
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -35, 0, -30)
 
 [node name="Nha1" parent="Architecture/Nha1_Body" unique_id=485431284 instance=ExtResource("3_nha1")]
-transform = Transform3D(20, 0, 0, 0, 20, 0, 0, 0, 20, 0, 0, 0)
+transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 0, 0, 0)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Nha1_Body" unique_id=1118896593]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.100006, 7.3588867, -1.8103638)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.05, 3.68, -0.9)
 shape = SubResource("NhaShape")
 
 [node name="Nha2_Body" type="StaticBody3D" parent="Architecture" unique_id=1124060606]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 35, 0, -30)
 
 [node name="Nha2" parent="Architecture/Nha2_Body" unique_id=2079579699 instance=ExtResource("4_nha2")]
-transform = Transform3D(20, 0, 0, 0, 20, 0, 0, 0, 20, 0, 0, 0)
+transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 0, 0, 0)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Nha2_Body" unique_id=680176006]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.7749634, 7.5, 0.65592957)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.38, 3.75, 0.32)
 shape = SubResource("NhaShape")
 
 [node name="Quay1_Body" type="StaticBody3D" parent="Architecture" unique_id=163368826]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -12, 0, -10)
 
 [node name="QuayThit1" parent="Architecture/Quay1_Body" unique_id=1147147167 instance=ExtResource("5_stall")]
-transform = Transform3D(0.5, 0, 0, 0, 0.35, 0, 0, 0, 0.5, 0, 0, 0)
+transform = Transform3D(0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay1_Body" unique_id=363632964]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.08542442, 1.75, -0.041441917)
 shape = SubResource("QuayShape")
 
+[node name="BanThit" parent="Architecture/Quay1_Body" unique_id=1111111 instance=ExtResource("7_ban_thit")]
+transform = Transform3D(-1.5, 0, -1.31134e-07, 0, 1.5, 0, 1.31134e-07, 0, -1.5, 0, 0, -1.2)
+
 [node name="Quay2_Body" type="StaticBody3D" parent="Architecture" unique_id=799913635]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 12, 0, -10)
-
-[node name="QuayThit2" parent="Architecture/Quay2_Body" unique_id=217070578 instance=ExtResource("5_stall")]
-transform = Transform3D(0.5, 0, 0, 0, 0.35, 0, 0, 0, 0.5, 0, 0, 0)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay2_Body" unique_id=70726954]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
 shape = SubResource("QuayShape")
 
+[node name="BanCa" parent="Architecture/Quay2_Body" unique_id=2222222 instance=ExtResource("6_ban_ca")]
+transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, -10.3822975, -0.15558243, -0.24954414)
+
 [node name="Quay3_Body" type="StaticBody3D" parent="Architecture" unique_id=521863210]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -12, 0, -25)
 
 [node name="QuayThit3" parent="Architecture/Quay3_Body" unique_id=1132362263 instance=ExtResource("5_stall")]
-transform = Transform3D(0.5, 0, 0, 0, 0.35, 0, 0, 0, 0.5, 0, 0, 0)
+transform = Transform3D(0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0)
+
+[node name="ThoMoc" parent="Architecture/Quay3_Body" unique_id=3333333 instance=ExtResource("8_tho_moc")]
+transform = Transform3D(-1.5, 0, -1.31134e-07, 0, 1.5, 0, 1.31134e-07, 0, -1.5, 0, 0, -1.2)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay3_Body" unique_id=2139064802]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
@@ -119,12 +132,35 @@ shape = SubResource("QuayShape")
 [node name="Quay4_Body" type="StaticBody3D" parent="Architecture" unique_id=2096218265]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 12, 0, -25)
 
-[node name="QuayThit4" parent="Architecture/Quay4_Body" unique_id=1259212530 instance=ExtResource("5_stall")]
-transform = Transform3D(0.5, 0, 0, 0, 0.35, 0, 0, 0, 0.5, 0, 0, 0)
+[node name="SapRau1" parent="Architecture/Quay4_Body" unique_id=1259212530 instance=ExtResource("10_sap_rau")]
+transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, 0, 0, 0)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay4_Body" unique_id=1613576960]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
 shape = SubResource("QuayShape")
+
+[node name="BaBanRau" parent="Architecture/Quay4_Body" unique_id=4444444 instance=ExtResource("9_ba_ban_rau")]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 1.7494488, 0, 0.3494501)
+
+[node name="TiemTapHoa_Body" type="StaticBody3D" parent="Architecture" unique_id=5555555]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -35, 0, 0)
+
+[node name="TiemTapHoa" parent="Architecture/TiemTapHoa_Body" unique_id=6666666 instance=ExtResource("11_tiem_tap_hoa")]
+transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 0, 0, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/TiemTapHoa_Body" unique_id=7777777]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.05, 3.68, -0.9)
+shape = SubResource("NhaShape")
+
+[node name="NhaThoXay_Body" type="StaticBody3D" parent="Architecture" unique_id=8888888]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 35, 0, 0)
+
+[node name="NhaThoXay" parent="Architecture/NhaThoXay_Body" unique_id=9999999 instance=ExtResource("12_nha_tho_xay")]
+transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 0, 0, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/NhaThoXay_Body" unique_id=1010101]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.38, 3.75, 0.32)
+shape = SubResource("NhaShape")
 
 [node name="Clouds" type="Node3D" parent="." unique_id=977298122]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 80, 0)
