@@ -28,6 +28,7 @@ var bait_x2d: float = 6000.0
 var bait_depth_ratio: float = 0.0
 
 # Underwater layers
+var plankton_particles: GPUParticles3D = null
 var underwater_plane: MeshInstance3D = null
 var underwater_props_root: Node3D = null
 var seaweed_nodes: Array = []
@@ -131,6 +132,15 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if state == GameState.NAVIGATING:
 		_process_navigation(delta)
+	
+	# Update camera to follow boat
+	_update_camera(delta)
+	
+	# THÊM VÀO ĐÂY:
+	_update_boat_waves(delta)
+	
+	# Update day/night cycle on sun
+	_update_lighting(delta)
 	
 	# Update HUD boat rotation for compass
 	if hud and boat:
@@ -341,20 +351,27 @@ func _setup_moon_and_stars() -> void:
 func _update_underwater_effects(delta: float) -> void:
 	if env and env.environment and camera:
 		var cam_y = camera.global_position.y
-		if cam_y < water_level_y:
-			# Camera chìm dưới nước: Bật Fog và tính toán độ đục
-			var depth = water_level_y - cam_y
-			# Càng sâu sương mù càng đặc (chỉnh các số này để đổi độ đục)
-			var target_density = clampf(0.015 + (depth * 0.01), 0.015, 0.1) 
+		
+		# Dời bầy bụi phù du đi theo camera để luôn thấy bụi
+		if plankton_particles:
+			plankton_particles.global_position = camera.global_position
 			
-			env.environment.fog_enabled = true
-			env.environment.fog_light_color = Color(0.05, 0.35, 0.5) # Màu đại dương sâu
-			env.environment.fog_density = lerpf(env.environment.fog_density, target_density, delta * 3.0)
+		if cam_y < water_level_y:
+			var depth = water_level_y - cam_y
+			# Volumetric fog cần thông số density nhỏ hơn sương mù thường rất nhiều
+			var target_density = clampf(0.005 + (depth * 0.002), 0.005, 0.05) 
+			
+			env.environment.volumetric_fog_enabled = true # ĐÃ SỬA
+			env.environment.volumetric_fog_albedo = Color(0.05, 0.45, 0.6) # ĐÃ SỬA
+			env.environment.volumetric_fog_density = lerpf(env.environment.volumetric_fog_density, target_density, delta * 3.0)
+			
+			if plankton_particles: plankton_particles.emitting = true
 		else:
-			# Camera ngoi lên mặt nước: Tan sương mù dần
-			env.environment.fog_density = lerpf(env.environment.fog_density, 0.0, delta * 5.0)
-			if env.environment.fog_density < 0.001:
-				env.environment.fog_enabled = false
+			env.environment.volumetric_fog_density = lerpf(env.environment.volumetric_fog_density, 0.0, delta * 5.0)
+			if env.environment.volumetric_fog_density < 0.0001:
+				env.environment.volumetric_fog_enabled = false
+			
+			if plankton_particles: plankton_particles.emitting = false
 
 
 func _check_zone() -> void:
@@ -1081,3 +1098,29 @@ func _setup_fish_animation(node: Node, anim_speed: float = 1.0) -> void:
 			
 			anim_player.play(anim_to_play)
 			anim_player.speed_scale = anim_speed
+			
+# ==========================================
+# THÊM MỚI: HIỆU ỨNG THUYỀN DẬP DÌU THEO SÓNG
+# ==========================================
+func _update_boat_waves(delta: float) -> void:
+	if boat == null:
+		return
+		
+	var time_sec = Time.get_ticks_msec() * 0.001
+	
+	# 1. Tính toán độ cao của sóng (Y) tại vị trí của thuyền
+	var wave_y = sin(time_sec * 2.0 + boat.global_position.x * 0.1) * 0.3
+	wave_y += cos(time_sec * 1.5 + boat.global_position.z * 0.15) * 0.2
+	
+	# Ép thuyền chìm xuống nước
+	var boat_sink_depth = -0.6
+	var target_y = water_level_y + wave_y + boat_sink_depth
+	
+	boat.global_position.y = lerpf(boat.global_position.y, target_y, 4.0 * delta)
+	
+	# 2. Tính toán độ nghiêng (Ngóc mũi/cắm đầu và Lắc lư mạn thuyền)
+	var pitch_angle = cos(time_sec * 2.0 + boat.global_position.x * 0.1) * 0.12 
+	var roll_angle = sin(time_sec * 1.5 + boat.global_position.z * 0.15) * 0.08  
+	
+	boat.rotation.z = lerp_angle(boat.rotation.z, pitch_angle, 3.0 * delta)
+	boat.rotation.x = lerp_angle(boat.rotation.x, roll_angle, 3.0 * delta)
