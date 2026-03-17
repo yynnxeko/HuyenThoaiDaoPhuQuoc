@@ -12,6 +12,11 @@
 [ext_resource type="PackedScene" uid="uid://br3m0fjmmmfj5" path="res://assets/sprites/village/sap_rau.glb" id="10_sap_rau"]
 [ext_resource type="PackedScene" uid="uid://cnavtqnxa5p4m" path="res://assets/sprites/village/tiem_tap_hoa.glb" id="11_tiem_tap_hoa"]
 [ext_resource type="PackedScene" uid="uid://bthlf36lbegt3" path="res://assets/sprites/village/nha_tho_xay.glb" id="12_nha_tho_xay"]
+[ext_resource type="Shader" uid="uid://g06unfg4muql" path="res://shaders/ocean_3d.gdshader" id="13_ocean"]
+[ext_resource type="PackedScene" uid="uid://hrni5qd12mr5" path="res://assets/sprites/village/ben_tau.glb" id="14_ben_tau"]
+[ext_resource type="PackedScene" uid="uid://dis3wx7uf34vw" path="res://assets/sprites/village/cay_dua.glb" id="15_cay_dua"]
+[ext_resource type="PackedScene" uid="uid://dlr4ou23n3777" path="res://assets/sprites/village/ro_ca.glb" id="16_ro_ca"]
+[ext_resource type="PackedScene" uid="uid://0yojwenahw1k" path="res://assets/sprites/village/thuyen_thung.glb" id="17_thuyen_thung"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMat_v"]
 sky_top_color = Color(0.2, 0.5, 0.8, 1)
@@ -29,16 +34,16 @@ glow_intensity = 0.8
 glow_bloom = 0.2
 
 [sub_resource type="BoxShape3D" id="NhaShape"]
-size = Vector3(9.68, 7.64, 7.91)
+size = Vector3(9.258733, 6.8434277, 7.9064693)
 
 [sub_resource type="BoxShape3D" id="QuayShape"]
-size = Vector3(6.470337, 5, 1.7701111)
+size = Vector3(2.4631844, 5, 1.0122299)
 
 [sub_resource type="StandardMaterial3D" id="GroundMat"]
 albedo_color = Color(0.2, 0.4, 0.2, 1)
 
 [sub_resource type="PlaneMesh" id="GroundMesh"]
-size = Vector2(100, 200)
+size = Vector2(100, 160)
 
 [sub_resource type="WorldBoundaryShape3D" id="GroundShape"]
 
@@ -58,6 +63,32 @@ size = Vector3(5, 0.1, 5)
 [sub_resource type="BoxShape3D" id="TerminalShape"]
 size = Vector3(5, 2, 5)
 
+[sub_resource type="StandardMaterial3D" id="SandMat"]
+albedo_color = Color(0.760784, 0.698039, 0.501961, 1)
+
+[sub_resource type="PlaneMesh" id="SandMesh"]
+size = Vector2(100, 20)
+
+[sub_resource type="BoxShape3D" id="SandShape"]
+size = Vector3(100, 1, 20)
+
+[sub_resource type="ShaderMaterial" id="OceanMat"]
+render_priority = 0
+shader = ExtResource("13_ocean")
+shader_parameter/shallow_color = Color(0.1, 0.6, 0.7, 0.85)
+shader_parameter/deep_color = Color(0.02, 0.15, 0.35, 0.95)
+shader_parameter/foam_color = Color(0.9, 0.95, 1, 0.6)
+shader_parameter/wave_speed = 0.15
+shader_parameter/wave_height = 0.15
+shader_parameter/wave_frequency = 0.6
+shader_parameter/foam_amount = 0.1
+shader_parameter/time_scale = 1.0
+
+[sub_resource type="PlaneMesh" id="OceanMesh"]
+size = Vector2(100, 40)
+subdivide_width = 50
+subdivide_depth = 20
+
 [node name="Village3D" type="Node3D" unique_id=834383967]
 script = ExtResource("1_v")
 
@@ -67,7 +98,7 @@ environment = SubResource("Env_v")
 [node name="SunLight" type="DirectionalLight3D" parent="." unique_id=288309497]
 transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 10, 0)
 light_color = Color(1, 1, 0.9, 1)
-light_energy = 2.0
+light_energy = 0.917
 light_angular_distance = 2.0
 shadow_enabled = true
 
@@ -77,76 +108,69 @@ shadow_enabled = true
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -35, 0, -30)
 
 [node name="Nha1" parent="Architecture/Nha1_Body" unique_id=485431284 instance=ExtResource("3_nha1")]
-transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 0, 0, 0)
+transform = Transform3D(17, 0, 0, 0, 17, 0, 0, 0, 17, 5.4759827, 0, 10.153288)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Nha1_Body" unique_id=1118896593]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.05, 3.68, -0.9)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.4385567, 4.078286, 10.838982)
 shape = SubResource("NhaShape")
 
 [node name="Nha2_Body" type="StaticBody3D" parent="Architecture" unique_id=1124060606]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 35, 0, -30)
 
 [node name="Nha2" parent="Architecture/Nha2_Body" unique_id=2079579699 instance=ExtResource("4_nha2")]
-transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 0, 0, 0)
+transform = Transform3D(16, 0, 0, 0, 16, 0, 0, 0, 16, 0, 0, 10.186314)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Nha2_Body" unique_id=680176006]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.38, 3.75, 0.32)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.21512222, 3.75, 10.328514)
 shape = SubResource("NhaShape")
 
 [node name="Quay1_Body" type="StaticBody3D" parent="Architecture" unique_id=163368826]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -12, 0, -10)
 
-[node name="QuayThit1" parent="Architecture/Quay1_Body" unique_id=1147147167 instance=ExtResource("5_stall")]
-transform = Transform3D(0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0)
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay1_Body" unique_id=363632964]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.08542442, 1.75, -0.041441917)
-shape = SubResource("QuayShape")
-
 [node name="BanThit" parent="Architecture/Quay1_Body" unique_id=1111111 instance=ExtResource("7_ban_thit")]
-transform = Transform3D(-1.5, 0, -1.31134e-07, 0, 1.5, 0, 1.31134e-07, 0, -1.5, 0, 0, -1.2)
+transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, 15.010971, 0, 0.9374161)
 
 [node name="Quay2_Body" type="StaticBody3D" parent="Architecture" unique_id=799913635]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 12, 0, -10)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay2_Body" unique_id=70726954]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20.566887, 1.75, 8.444886)
 shape = SubResource("QuayShape")
 
 [node name="BanCa" parent="Architecture/Quay2_Body" unique_id=2222222 instance=ExtResource("6_ban_ca")]
-transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, -10.3822975, -0.15558243, -0.24954414)
+transform = Transform3D(5, 0, 0, 0, 5, 0, 0, 0, 5, -20.566406, -0.15558243, 8.453617)
 
 [node name="Quay3_Body" type="StaticBody3D" parent="Architecture" unique_id=521863210]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -12, 0, -25)
 
 [node name="QuayThit3" parent="Architecture/Quay3_Body" unique_id=1132362263 instance=ExtResource("5_stall")]
-transform = Transform3D(0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0)
+transform = Transform3D(0.6, 0, 0, 0, 0.6, 0, 0, 0, 0.6, 0, 0, 0)
 
 [node name="ThoMoc" parent="Architecture/Quay3_Body" unique_id=3333333 instance=ExtResource("8_tho_moc")]
-transform = Transform3D(-1.5, 0, -1.31134e-07, 0, 1.5, 0, 1.31134e-07, 0, -1.5, 0, 0, -1.2)
+transform = Transform3D(-1.5, 0, -1.31134e-07, 0, 1.5, 0, 1.31134e-07, 0, -1.5, -8.193827, 0.16039324, 30.976831)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay3_Body" unique_id=2139064802]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.08207703, 1.75, 0.12197113)
 shape = SubResource("QuayShape")
 
 [node name="Quay4_Body" type="StaticBody3D" parent="Architecture" unique_id=2096218265]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 12, 0, -25)
 
 [node name="SapRau1" parent="Architecture/Quay4_Body" unique_id=1259212530 instance=ExtResource("10_sap_rau")]
-transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, 0, 0, 0)
+transform = Transform3D(5, 0, 0, 0, 5, 0, 0, 0, 5, 0, 0, 8.681564)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay4_Body" unique_id=1613576960]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 8.610493)
 shape = SubResource("QuayShape")
 
 [node name="BaBanRau" parent="Architecture/Quay4_Body" unique_id=4444444 instance=ExtResource("9_ba_ban_rau")]
-transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 1.7494488, 0, 0.3494501)
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 1.7494488, 0, 9.266053)
 
 [node name="TiemTapHoa_Body" type="StaticBody3D" parent="Architecture" unique_id=5555555]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -35, 0, 0)
 
 [node name="TiemTapHoa" parent="Architecture/TiemTapHoa_Body" unique_id=6666666 instance=ExtResource("11_tiem_tap_hoa")]
-transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 0, 0, 0)
+transform = Transform3D(13, 0, 0, 0, 13, 0, 0, 0, 13, 11.13007, 0, 10.015415)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/TiemTapHoa_Body" unique_id=7777777]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.05, 3.68, -0.9)
@@ -156,10 +180,10 @@ shape = SubResource("NhaShape")
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 35, 0, 0)
 
 [node name="NhaThoXay" parent="Architecture/NhaThoXay_Body" unique_id=9999999 instance=ExtResource("12_nha_tho_xay")]
-transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 0, 0, 0)
+transform = Transform3D(12, 0, 0, 0, 12, 0, 0, 0, 12, -11.746746, 0, 10.417721)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/NhaThoXay_Body" unique_id=1010101]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.38, 3.75, 0.32)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11.774695, 3.75, 9.687817)
 shape = SubResource("NhaShape")
 
 [node name="Clouds" type="Node3D" parent="." unique_id=977298122]
@@ -172,8 +196,10 @@ transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 40, 0, 60)
 transform = Transform3D(-10, 0, 8.74228e-07, 0, 10, 0, -8.74228e-07, 0, -10, -80, 20, -40)
 
 [node name="Ground" type="StaticBody3D" parent="." unique_id=757101834]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 20)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Ground" unique_id=857156854]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0032129288, 0.019395828, 0.00034332275)
 material_override = SubResource("GroundMat")
 mesh = SubResource("GroundMesh")
 
@@ -193,11 +219,57 @@ shape = SubResource("PlayerShape")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -60)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="FerryTerminal" unique_id=507357907]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15.092492, 0, -8.721512)
 material_override = SubResource("TerminalMat")
 mesh = SubResource("TerminalMesh")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="FerryTerminal" unique_id=721741137]
 shape = SubResource("TerminalShape")
+
+[node name="Sand" type="StaticBody3D" parent="." unique_id=1241565030]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -70)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Sand" unique_id=1265361068]
+material_override = SubResource("SandMat")
+mesh = SubResource("SandMesh")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Sand" unique_id=619022762]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+shape = SubResource("SandShape")
+
+[node name="Ocean" type="MeshInstance3D" parent="." unique_id=555555555]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.2, -100)
+material_override = SubResource("OceanMat")
+mesh = SubResource("OceanMesh")
+
+[node name="CoastalAssets" type="Node3D" parent="." unique_id=666666666]
+
+[node name="BenTau" parent="CoastalAssets" unique_id=777777777 instance=ExtResource("14_ben_tau")]
+transform = Transform3D(-1.9920897, -0.13930048, -11.325289, -0.8021994, 11.471987, 0, 11.297702, 0.79001224, -1.9969542, 0, 0.20406532, -84.64435)
+
+[node name="CayDua1" parent="CoastalAssets" unique_id=888888888 instance=ExtResource("15_cay_dua")]
+transform = Transform3D(5, 0, 0, 0, 5, 0, 0, 0, 5, 10, 0, -62.062065)
+
+[node name="CayDua2" parent="CoastalAssets" unique_id=999999999 instance=ExtResource("15_cay_dua")]
+transform = Transform3D(7, 0, 0, 0, 7, 0, 0, 0, 7, -18, -0.03789854, -62.777218)
+
+[node name="CayDua3" parent="CoastalAssets" unique_id=101010101 instance=ExtResource("15_cay_dua")]
+transform = Transform3D(8, 0, 0, 0, 8, 0, 0, 0, 8, -16.191896, -0.03274846, -61.337917)
+
+[node name="RoCa1" parent="CoastalAssets" unique_id=111111111 instance=ExtResource("16_ro_ca")]
+transform = Transform3D(1, 0, 0, 0, 0.94945836, -0.31389302, 0, 0.31389302, 0.94945836, -13.372362, -0.031641394, -74.36098)
+
+[node name="RoCa2" parent="CoastalAssets" unique_id=121212121 instance=ExtResource("16_ro_ca")]
+transform = Transform3D(0.9707165, -0.24022804, 0, 0.24022804, 0.9707165, 0, 0, 0, 1, -12.737539, -0.027252674, -72.89897)
+
+[node name="RoCa3" parent="CoastalAssets" unique_id=131313131 instance=ExtResource("16_ro_ca")]
+transform = Transform3D(2, 0, 0, 0, 1.9446502, -0.4672641, 0, 0.4672641, 1.9446502, 14.359304, -0.95826447, -82.58491)
+
+[node name="ThuyenThung1" parent="CoastalAssets" unique_id=141414141 instance=ExtResource("17_thuyen_thung")]
+transform = Transform3D(3.5, 0, 0, 0, 3.5, 0, 0, 0, 3.5, -4.0393786, 0.2006464, -82.48543)
+
+[node name="ThuyenThung2" parent="CoastalAssets" unique_id=151515151 instance=ExtResource("17_thuyen_thung")]
+transform = Transform3D(3.5, 0, 0, 0, 3.5, 0, 0, 0, 3.5, -15.103489, 0, -73.113556)
 
 [node name="UI" type="CanvasLayer" parent="." unique_id=414508771]
 

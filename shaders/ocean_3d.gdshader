@@ -42,7 +42,7 @@ void fragment() {
 	// Animated caustic/ripple pattern
 	float ripple1 = sin(world_pos.x * 3.0 + t * 2.0) * sin(world_pos.z * 2.5 + t * 1.5);
 	float ripple2 = sin(world_pos.x * 5.0 - t * 1.8 + 2.0) * sin(world_pos.z * 4.0 + t * 1.2);
-	float ripple = (ripple1 + ripple2) * 0.05;
+	float ripple = (ripple1 + ripple2) * 0.02;
 	
 	water_col.rgb += ripple;
 	
@@ -53,11 +53,11 @@ void fragment() {
 	
 	// Fresnel effect (edge reflection)
 	float fresnel = pow(1.0 - abs(dot(NORMAL, VIEW)), 3.0);
-	water_col.rgb += fresnel * 0.15;
+	water_col.rgb += fresnel * 0.05;
 	
 	ALBEDO = water_col.rgb;
 	ALPHA = water_col.a;
-	METALLIC = 0.1;
-	ROUGHNESS = 0.15 + ripple * 0.2;
-	SPECULAR = 0.8;
+	METALLIC = 0.05;
+	ROUGHNESS = 0.6 + ripple;
+	SPECULAR = 0.1;
 }
