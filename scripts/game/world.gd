@@ -48,6 +48,7 @@ var camera: Camera3D = null
 var hud: Control = null
 var fishing_mode_node = null
 var ocean: MeshInstance3D = null
+var ocean_mesh: MeshInstance3D = null
 
 # Fishing
 var fishing_spots: Array = []
@@ -822,8 +823,6 @@ func _on_visual_fish_update(pos_2d: Vector2, fish_data, p_visible: bool, is_figh
 		active_fish_3d.global_position = active_fish_3d.global_position.lerp(final_target_pos, follow_speed * get_process_delta_time())
 		
 		# Scale kích thước cá
-		var s = fish_data.max_size * 0.1
-		if fish_data.rarity == "legendary": s = clampf(s, 0.3, 0.75)
 		var s = fish_data.max_size * 0.05
 		if fish_data.id == "ca_map": s *= 0.02
 		if fish_data.rarity == "legendary": s = clampf(s, 0.15, 0.4)
