@@ -5,6 +5,7 @@ extends Node
 @onready var current_scene: Node = null
 var menu_scene_path: String = "res://scenes/ui/main_menu.tscn"
 var game_scene_path: String = "res://scenes/game/game.tscn"
+var village_scene_path: String = "res://scenes/game/village.tscn"
 
 
 func _ready() -> void:
@@ -37,14 +38,14 @@ func _on_start_game() -> void:
 	print("[Main] _on_start_game")
 	if GameData != null and GameData.has_method("reset_game"):
 		GameData.reset_game()
-	call_deferred("_load_game")
+	call_deferred("_load_village")
 
 
 func _on_continue_game() -> void:
 	print("[Main] _on_continue_game")
 	if GameData != null and GameData.has_method("load_game"):
 		GameData.load_game()
-	call_deferred("_load_game")
+	call_deferred("_load_village")
 
 
 func _load_game() -> void:
@@ -57,8 +58,33 @@ func _load_game() -> void:
 		print("[Main] game scene instantiated")
 		if current_scene.has_signal("return_to_menu"):
 			current_scene.return_to_menu.connect(_on_return_to_menu)
+		if current_scene.has_signal("go_to_village"):
+			current_scene.go_to_village.connect(_on_go_to_village)
 	else:
 		OS.alert("Lỗi: Không thể tải được file game.tscn! Hãy nhấn F4 để xem tab Errors.", "Lỗi Load Game")
+
+
+func _on_go_to_village() -> void:
+	call_deferred("_load_village")
+
+
+func _load_village() -> void:
+	print("[Main] _load_village -> " + village_scene_path)
+	_clear_current()
+	var scene = load(village_scene_path)
+	if scene:
+		current_scene = scene.instantiate()
+		add_child(current_scene)
+		if current_scene.has_signal("return_to_game"):
+			current_scene.return_to_game.connect(_on_return_to_game)
+		if current_scene.has_signal("go_to_sea"):
+			current_scene.go_to_sea.connect(_on_return_to_game)
+	else:
+		OS.alert("Lỗi: Không thể tải được file village.tscn!", "Lỗi Load Village")
+
+
+func _on_return_to_game() -> void:
+	call_deferred("_load_game")
 
 
 func _on_return_to_menu() -> void:

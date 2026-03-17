@@ -1,0 +1,217 @@
+[gd_scene format=3 uid="uid://dbxx0ajp8bgg4"]
+
+[ext_resource type="Script" uid="uid://c2ndq2eo75f2t" path="res://scripts/game/village.gd" id="1_v"]
+[ext_resource type="PackedScene" uid="uid://bwat1qs1fxtlg" path="res://assets/sprites/village/Cloud.glb" id="2_cloud"]
+[ext_resource type="PackedScene" uid="uid://c6hoy8r6ia35d" path="res://assets/sprites/village/nha1.glb" id="3_nha1"]
+[ext_resource type="PackedScene" uid="uid://r88fj2dq7p6q" path="res://assets/sprites/village/nha2.glb" id="4_nha2"]
+[ext_resource type="PackedScene" uid="uid://chnrl2gwcovs" path="res://assets/sprites/village/quayThit.glb" id="5_stall"]
+[ext_resource type="PackedScene" uid="uid://cckx5hpns5ey7" path="res://assets/sprites/village/ban_ca.glb" id="6_ban_ca"]
+[ext_resource type="PackedScene" uid="uid://cquqaj3pkxq7o" path="res://assets/sprites/village/ban_thit.glb" id="7_ban_thit"]
+[ext_resource type="PackedScene" uid="uid://lm0ktsuwtkru" path="res://assets/sprites/village/tho_moc.glb" id="8_tho_moc"]
+[ext_resource type="PackedScene" uid="uid://dghjwvre6ka3w" path="res://assets/sprites/village/ba_ban_rau.glb" id="9_ba_ban_rau"]
+[ext_resource type="PackedScene" uid="uid://br3m0fjmmmfj5" path="res://assets/sprites/village/sap_rau.glb" id="10_sap_rau"]
+[ext_resource type="PackedScene" uid="uid://cnavtqnxa5p4m" path="res://assets/sprites/village/tiem_tap_hoa.glb" id="11_tiem_tap_hoa"]
+[ext_resource type="PackedScene" uid="uid://bthlf36lbegt3" path="res://assets/sprites/village/nha_tho_xay.glb" id="12_nha_tho_xay"]
+
+[sub_resource type="ProceduralSkyMaterial" id="SkyMat_v"]
+sky_top_color = Color(0.2, 0.5, 0.8, 1)
+sky_horizon_color = Color(0.65, 0.7, 0.8, 1)
+
+[sub_resource type="Sky" id="Sky_v"]
+sky_material = SubResource("SkyMat_v")
+
+[sub_resource type="Environment" id="Env_v"]
+background_mode = 2
+sky = SubResource("Sky_v")
+tonemap_mode = 2
+glow_enabled = true
+glow_intensity = 0.8
+glow_bloom = 0.2
+
+[sub_resource type="BoxShape3D" id="NhaShape"]
+size = Vector3(9.68, 7.64, 7.91)
+
+[sub_resource type="BoxShape3D" id="QuayShape"]
+size = Vector3(6.470337, 5, 1.7701111)
+
+[sub_resource type="StandardMaterial3D" id="GroundMat"]
+albedo_color = Color(0.2, 0.4, 0.2, 1)
+
+[sub_resource type="PlaneMesh" id="GroundMesh"]
+size = Vector2(100, 200)
+
+[sub_resource type="WorldBoundaryShape3D" id="GroundShape"]
+
+[sub_resource type="CapsuleShape3D" id="PlayerShape"]
+radius = 0.4
+height = 1.8
+
+[sub_resource type="StandardMaterial3D" id="TerminalMat"]
+albedo_color = Color(0.1, 0.4, 1, 1)
+emission_enabled = true
+emission = Color(0.1, 0.4, 1, 1)
+emission_energy_multiplier = 4.0
+
+[sub_resource type="BoxMesh" id="TerminalMesh"]
+size = Vector3(5, 0.1, 5)
+
+[sub_resource type="BoxShape3D" id="TerminalShape"]
+size = Vector3(5, 2, 5)
+
+[node name="Village3D" type="Node3D" unique_id=834383967]
+script = ExtResource("1_v")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1230044613]
+environment = SubResource("Env_v")
+
+[node name="SunLight" type="DirectionalLight3D" parent="." unique_id=288309497]
+transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 10, 0)
+light_color = Color(1, 1, 0.9, 1)
+light_energy = 2.0
+light_angular_distance = 2.0
+shadow_enabled = true
+
+[node name="Architecture" type="Node3D" parent="." unique_id=943973201]
+
+[node name="Nha1_Body" type="StaticBody3D" parent="Architecture" unique_id=1337240901]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -35, 0, -30)
+
+[node name="Nha1" parent="Architecture/Nha1_Body" unique_id=485431284 instance=ExtResource("3_nha1")]
+transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 0, 0, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Nha1_Body" unique_id=1118896593]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.05, 3.68, -0.9)
+shape = SubResource("NhaShape")
+
+[node name="Nha2_Body" type="StaticBody3D" parent="Architecture" unique_id=1124060606]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 35, 0, -30)
+
+[node name="Nha2" parent="Architecture/Nha2_Body" unique_id=2079579699 instance=ExtResource("4_nha2")]
+transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 0, 0, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Nha2_Body" unique_id=680176006]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.38, 3.75, 0.32)
+shape = SubResource("NhaShape")
+
+[node name="Quay1_Body" type="StaticBody3D" parent="Architecture" unique_id=163368826]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -12, 0, -10)
+
+[node name="QuayThit1" parent="Architecture/Quay1_Body" unique_id=1147147167 instance=ExtResource("5_stall")]
+transform = Transform3D(0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay1_Body" unique_id=363632964]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.08542442, 1.75, -0.041441917)
+shape = SubResource("QuayShape")
+
+[node name="BanThit" parent="Architecture/Quay1_Body" unique_id=1111111 instance=ExtResource("7_ban_thit")]
+transform = Transform3D(-1.5, 0, -1.31134e-07, 0, 1.5, 0, 1.31134e-07, 0, -1.5, 0, 0, -1.2)
+
+[node name="Quay2_Body" type="StaticBody3D" parent="Architecture" unique_id=799913635]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 12, 0, -10)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay2_Body" unique_id=70726954]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
+shape = SubResource("QuayShape")
+
+[node name="BanCa" parent="Architecture/Quay2_Body" unique_id=2222222 instance=ExtResource("6_ban_ca")]
+transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, -10.3822975, -0.15558243, -0.24954414)
+
+[node name="Quay3_Body" type="StaticBody3D" parent="Architecture" unique_id=521863210]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -12, 0, -25)
+
+[node name="QuayThit3" parent="Architecture/Quay3_Body" unique_id=1132362263 instance=ExtResource("5_stall")]
+transform = Transform3D(0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0)
+
+[node name="ThoMoc" parent="Architecture/Quay3_Body" unique_id=3333333 instance=ExtResource("8_tho_moc")]
+transform = Transform3D(-1.5, 0, -1.31134e-07, 0, 1.5, 0, 1.31134e-07, 0, -1.5, 0, 0, -1.2)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay3_Body" unique_id=2139064802]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
+shape = SubResource("QuayShape")
+
+[node name="Quay4_Body" type="StaticBody3D" parent="Architecture" unique_id=2096218265]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 12, 0, -25)
+
+[node name="SapRau1" parent="Architecture/Quay4_Body" unique_id=1259212530 instance=ExtResource("10_sap_rau")]
+transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, 0, 0, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay4_Body" unique_id=1613576960]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
+shape = SubResource("QuayShape")
+
+[node name="BaBanRau" parent="Architecture/Quay4_Body" unique_id=4444444 instance=ExtResource("9_ba_ban_rau")]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 1.7494488, 0, 0.3494501)
+
+[node name="TiemTapHoa_Body" type="StaticBody3D" parent="Architecture" unique_id=5555555]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -35, 0, 0)
+
+[node name="TiemTapHoa" parent="Architecture/TiemTapHoa_Body" unique_id=6666666 instance=ExtResource("11_tiem_tap_hoa")]
+transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 0, 0, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/TiemTapHoa_Body" unique_id=7777777]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.05, 3.68, -0.9)
+shape = SubResource("NhaShape")
+
+[node name="NhaThoXay_Body" type="StaticBody3D" parent="Architecture" unique_id=8888888]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 35, 0, 0)
+
+[node name="NhaThoXay" parent="Architecture/NhaThoXay_Body" unique_id=9999999 instance=ExtResource("12_nha_tho_xay")]
+transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 0, 0, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/NhaThoXay_Body" unique_id=1010101]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.38, 3.75, 0.32)
+shape = SubResource("NhaShape")
+
+[node name="Clouds" type="Node3D" parent="." unique_id=977298122]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 80, 0)
+
+[node name="Cloud1" parent="Clouds" unique_id=1058977365 instance=ExtResource("2_cloud")]
+transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 40, 0, 60)
+
+[node name="Cloud2" parent="Clouds" unique_id=1140440855 instance=ExtResource("2_cloud")]
+transform = Transform3D(-10, 0, 8.74228e-07, 0, 10, 0, -8.74228e-07, 0, -10, -80, 20, -40)
+
+[node name="Ground" type="StaticBody3D" parent="." unique_id=757101834]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Ground" unique_id=857156854]
+material_override = SubResource("GroundMat")
+mesh = SubResource("GroundMesh")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ground" unique_id=1139756444]
+shape = SubResource("GroundShape")
+
+[node name="Player" type="CharacterBody3D" parent="." unique_id=987724840]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+
+[node name="Camera3D" type="Camera3D" parent="Player" unique_id=1518850562]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Player" unique_id=1279555291]
+shape = SubResource("PlayerShape")
+
+[node name="FerryTerminal" type="Area3D" parent="." unique_id=1182440138]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -60)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="FerryTerminal" unique_id=507357907]
+material_override = SubResource("TerminalMat")
+mesh = SubResource("TerminalMesh")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="FerryTerminal" unique_id=721741137]
+shape = SubResource("TerminalShape")
+
+[node name="UI" type="CanvasLayer" parent="." unique_id=414508771]
+
+[node name="Label" type="Label" parent="UI" unique_id=1344173865]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -150.0
+offset_top = 50.0
+offset_right = 150.0
+offset_bottom = 100.0
+grow_horizontal = 2
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
+text = "KHU DÂN CƯ
+Di chuyển đến khối màu xanh để ra biển"
+horizontal_alignment = 1
+vertical_alignment = 1

@@ -4,6 +4,10 @@ extends Node2D
 
 signal fishing_ended
 signal fish_caught(fish_id: String, size: float)
+signal bait_camera_update(x2d: float, depth_ratio: float)
+signal bait_camera_end
+signal visual_fish_update(pos: Vector2, fish_data: Object, is_visible: bool, is_fighting: bool)
+signal nearby_fish_visual_update(fish_list: Array)
 
 enum FishingState { IDLE, CASTING, LINE_SINKING, WAITING, FISH_BITE, MINIGAME, CAUGHT, ESCAPED }
 var state: FishingState = FishingState.IDLE
@@ -23,6 +27,17 @@ var line_start: Vector2 = Vector2.ZERO
 var hook_pos: Vector2 = Vector2.ZERO
 var hook_target_depth: float = 200.0
 var line_sink_speed: float = 80.0
+var bait_move_speed_x: float = 220.0
+var bait_move_speed_y: float = 180.0
+var bait_min_depth: float = 40.0
+var bait_max_depth: float = 480.0
+var bait_attract_strength: float = 0.0
+var bait_movement_energy: float = 0.0
+var bait_prev_pos: Vector2 = Vector2.ZERO
+var bait_movement_speed: float = 0.0
+var fish_spawn_cooldown: float = 6.0
+var fish_spawn_timer: float = 0.0
+var bite_ready_timer: float = 0.0
 
 # Bobber
 var bobber_pos: Vector2 = Vector2.ZERO
@@ -36,6 +51,10 @@ var bite_fish: Object = null
 # Bite notification
 var bite_alert_timer: float = 0.0
 const BITE_ALERT_DURATION: float = 2.5
+var hook_window_start: float = 0.25
+var hook_window_length: float = 1.0
+var hook_window_perfect: float = 0.3
+var hook_quality: String = "none"
 
 # Minigame
 var tension: float = 0.5
@@ -44,13 +63,22 @@ var sweet_zone_pos: float = 0.5
 var sweet_zone_size: float = 0.25
 var fish_pull_timer: float = 0.0
 var fish_pull_direction: float = 0.0
+var fish_pull_vertical: float = 0.0
+var fish_strength: float = 2.0
+var fish_stamina: float = 3.0
+var fish_aggression: float = 0.2
+var fish_weight: float = 1.0
+var fish_fatigue: float = 0.0
 
 # Visual
 var wave_time: float = 0.0
 var water_line_y: float = 540.0
+var surface_y: float = 540.0
+var surface_shift: float = 520.0
 
-# Boat reference
-var boat_ref: Node2D = null
+# Boat/camera references
+var boat_ref: Node = null
+var camera_ref: Camera3D = null
 
 # === VISUAL FISH ===
 var nearby_fish: Array = []  # Fish swimming near the hook
@@ -65,17 +93,15 @@ var splashes: Array = []
 var sparkles: Array = []
 
 
-func setup(spot: Dictionary, zone, boat: Node2D = null) -> void:
+func setup(spot: Dictionary, zone, boat: Node = null, camera: Camera3D = null) -> void:
 	spot_data = spot
 	zone_info = zone
 	boat_ref = boat
+	camera_ref = camera
 	state = FishingState.IDLE
-	if boat_ref:
-		var rod_tip_offset = Vector2(100, -65) if boat_ref.facing_right else Vector2(-100, -65)
-		line_start = boat_ref.position + rod_tip_offset
-	else:
-		line_start = Vector2(960, water_line_y - 60)
+	_update_line_start()
 	hook_pos = line_start
+	bait_prev_pos = hook_pos
 	_spawn_nearby_fish()
 
 
@@ -83,22 +109,66 @@ func _ready() -> void:
 	_calculate_bite_time()
 
 
+func _update_line_start() -> void:
+	if boat_ref and camera_ref and boat_ref is Node3D:
+		var boat_3d := boat_ref as Node3D
+		var forward = boat_3d.global_basis.x.normalized()
+		var rod_tip_world = boat_3d.global_position + forward * 1.4 + Vector3(0, 1.6, 0)
+		line_start = camera_ref.unproject_position(rod_tip_world)
+		var viewport_size = get_viewport_rect().size if is_inside_tree() else Vector2(1920, 1080)
+		line_start.x = clampf(line_start.x, 0.0, viewport_size.x)
+		line_start.y = clampf(line_start.y, 0.0, viewport_size.y)
+		return
+	if boat_ref and boat_ref is Node2D:
+		var boat_2d := boat_ref as Node2D
+		var rod_tip_offset = Vector2(100, -65) if boat_2d.facing_right else Vector2(-100, -65)
+		line_start = boat_2d.position + rod_tip_offset
+		return
+	line_start = Vector2(960, water_line_y - 60)
+
+
 func _spawn_nearby_fish() -> void:
 	nearby_fish.clear()
-	for i in range(randi_range(4, 8)):
+	var zone_id = spot_data.get("zone", "coastal")
+	# Get available fish for this zone to make models match
+	var avail = FishDatabase.get_all_fish().filter(func(f): return zone_id in f.zones)
+	if avail.is_empty(): avail = FishDatabase.get_all_fish()
+
+	for i in range(randi_range(2, 4)):
+		var f_data = avail.pick_random()
+		var behavior = "small"
+		if f_data.rarity in ["rare", "epic"]: behavior = "predator"
+		elif f_data.rarity == "legendary": behavior = "rare"
+		
 		var fish_x = randf_range(300, 1600)
 		var fish_y = randf_range(water_line_y + 60, 900)
 		nearby_fish.append({
+			"fish_id": f_data.id,
+			"fish_data": f_data,
 			"x": fish_x,
 			"y": fish_y,
 			"base_y": fish_y,
 			"speed": randf_range(30, 80),
 			"dir": [-1.0, 1.0][randi() % 2],
-			"size": randf_range(10, 22),
-			"color": Color(randf_range(0.3, 0.7), randf_range(0.5, 0.8), randf_range(0.6, 0.9), 0.5),
+			"size": randf_range(16, 28),
+			"color": f_data.color,
 			"wave_phase": randf() * TAU,
 			"interested": false,
 			"flee": false,
+			"behavior": behavior,
+			"interest": 0.0,
+			"suspicion": 0.0,
+			"fishCuriosity": randf_range(0.6, 1.3),
+			"fishCaution": randf_range(0.6, 1.4),
+			"bite_threshold": randf_range(45.0, 75.0),
+			"suspicion_limit": randf_range(80.0, 120.0),
+			"cue": "idle",
+			"cue_timer": randf_range(0.0, 2.0),
+			"circle_angle": randf() * TAU,
+			"circle_radius": randf_range(28.0, 60.0),
+			"doubt_phase": randf() * TAU,
+			"tail_amp": 1.0,
+			"alpha": 0.5
 		})
 
 
@@ -142,11 +212,17 @@ func _spawn_sparkle(pos: Vector2, color: Color, count: int = 8) -> void:
 
 func _process(delta: float) -> void:
 	wave_time += delta
+	if fish_spawn_timer > 0.0:
+		fish_spawn_timer = max(0.0, fish_spawn_timer - delta)
+	if state != FishingState.IDLE:
+		bobber_bob_time += delta
+	if state == FishingState.IDLE or state == FishingState.CASTING:
+		surface_y = water_line_y
+	bait_attract_strength = max(0.0, bait_attract_strength - delta * 1.2)
+	bait_movement_energy = max(0.0, bait_movement_energy - delta * 1.5)
 	
 	# Update line_start from boat
-	if boat_ref:
-		var rod_tip_offset = Vector2(100, -65) if boat_ref.facing_right else Vector2(-100, -65)
-		line_start = boat_ref.position + rod_tip_offset
+	_update_line_start()
 	
 	match state:
 		FishingState.IDLE:
@@ -170,8 +246,37 @@ func _process(delta: float) -> void:
 	_update_nearby_fish(delta)
 	# Update particles
 	_update_particles(delta)
+	# Update bait camera
+	_update_bait_camera()
+	# Player controls bait after it reaches water
+	_process_bait_control(delta)
+	# Keep bobber on surface while fishing
+	if state != FishingState.IDLE and state != FishingState.CASTING:
+		bobber_pos.y = surface_y + sin(bobber_bob_time * 2.0) * 3.0
+		bobber_pos.x = lerp(bobber_pos.x, hook_pos.x, 0.12)
+	
+	# Emit visual update for the biting fish
+	if bite_fish:
+		var is_fighting = (state == FishingState.MINIGAME)
+		var is_caught = (state == FishingState.CAUGHT)
+		var vis = (state == FishingState.FISH_BITE or is_fighting or is_caught)
+		visual_fish_update.emit(biting_fish_pos, bite_fish, vis, is_fighting)
+	else:
+		visual_fish_update.emit(Vector2.ZERO, null, false, false)
+	
+	# Emit nearby fish positions for 3D matching
+	nearby_fish_visual_update.emit(nearby_fish)
 	
 	queue_redraw()
+
+
+func _update_bait_camera() -> void:
+	if state == FishingState.LINE_SINKING or state == FishingState.WAITING or state == FishingState.FISH_BITE or state == FishingState.MINIGAME:
+		var max_depth = max(1.0, hook_target_depth - water_line_y)
+		var depth = max(0.0, hook_pos.y - water_line_y)
+		var depth_ratio = clampf(depth / max_depth, 0.0, 1.0)
+		surface_y = clampf(lerp(water_line_y, water_line_y - surface_shift, depth_ratio), 120.0, water_line_y)
+		bait_camera_update.emit(hook_pos.x, depth_ratio)
 
 
 func _process_idle(_delta: float) -> void:
@@ -187,8 +292,9 @@ func _process_casting(delta: float) -> void:
 		if Input.is_action_just_released("cast_line"):
 			cast_charging = false
 			hook_target_depth = water_line_y + 50.0 + cast_power * 300.0
+			hook_pos.y = water_line_y + bait_min_depth
 			var cast_dir = 1.0 if (boat_ref and boat_ref.facing_right) else 1.0
-			bobber_pos = Vector2(line_start.x + cast_power * 200.0 * cast_dir, water_line_y)
+			bobber_pos = Vector2(line_start.x + cast_power * 200.0 * cast_dir, surface_y)
 			hook_pos = bobber_pos
 			_spawn_splash(bobber_pos, 8)
 			AudioManager.play_cast()
@@ -205,12 +311,58 @@ func _process_sinking(delta: float) -> void:
 		state = FishingState.WAITING
 		wait_timer = 0.0
 		_calculate_bite_time()
+		bait_attract_strength = 0.2
+
+
+func _process_bait_control(delta: float) -> void:
+	if state != FishingState.WAITING and state != FishingState.FISH_BITE:
+		return
+	var input_vec := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	var input_x := input_vec.x
+	var input_y := input_vec.y
+	if Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP):
+		input_y -= 1.0
+	if Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN):
+		input_y += 1.0
+	if Input.is_action_pressed("move_left"):
+		input_x -= 1.0
+	if Input.is_action_pressed("move_right"):
+		input_x += 1.0
+	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) or Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+		var mouse_vel = Input.get_last_mouse_velocity()
+		input_x += clampf(mouse_vel.x / 600.0, -1.0, 1.0)
+		input_y += clampf(mouse_vel.y / 600.0, -1.0, 1.0)
+	if input_x == 0.0 and input_y == 0.0:
+		bait_movement_speed = max(0.0, bait_movement_speed - delta * 200.0)
+		return
+	var prev_hook = hook_pos
+	hook_pos.x += input_x * bait_move_speed_x * delta
+	hook_pos.y += input_y * bait_move_speed_y * delta
+	var viewport_size = get_viewport_rect().size
+	hook_pos.x = clampf(hook_pos.x, 40.0, viewport_size.x - 40.0)
+	var min_y = water_line_y + bait_min_depth
+	var max_y = water_line_y + bait_max_depth
+	hook_pos.y = clampf(hook_pos.y, min_y, max_y)
+	var move_dist = hook_pos.distance_to(prev_hook)
+	if move_dist > 1.0:
+		bait_attract_strength = clampf(bait_attract_strength + move_dist * 0.002, 0.0, 1.0)
+		bait_movement_energy = clampf(bait_movement_energy + move_dist * 0.004, 0.0, 1.0)
+		bait_movement_speed = lerpf(bait_movement_speed, move_dist / max(delta, 0.001), 0.35)
+		if randi() % 3 == 0:
+			_spawn_bubble(hook_pos, 1)
 
 
 func _process_waiting(delta: float) -> void:
 	wait_timer += delta
-	bobber_bob_time += delta
-	bobber_pos.y = water_line_y + sin(bobber_bob_time * 2.0) * 3.0
+	bite_ready_timer += delta
+	# Respawn fish if most have fled
+	var active_count := 0
+	for f in nearby_fish:
+		if not f.get("flee", false):
+			active_count += 1
+	if active_count <= 2 and fish_spawn_timer <= 0.0:
+		_spawn_nearby_fish()
+		fish_spawn_timer = fish_spawn_cooldown
 	
 	# Make some fish interested in the bait over time
 	var interest_progress = clampf(wait_timer / bite_time, 0.0, 1.0)
@@ -219,17 +371,32 @@ func _process_waiting(delta: float) -> void:
 			fish["interested"] = true
 	
 	if wait_timer >= bite_time:
-		if bite_fish != null:
+		var candidate_index := -1
+		for i in range(nearby_fish.size()):
+			var f = nearby_fish[i]
+			if f.get("flee", false):
+				continue
+			var interest_val: float = float(f.get("interest", 0.0))
+			var bite_threshold: float = float(f.get("bite_threshold", 70.0))
+			if interest_val >= bite_threshold:
+				candidate_index = i
+				break
+		if bite_fish != null and (candidate_index != -1 or bite_ready_timer >= bite_time * 1.6):
 			state = FishingState.FISH_BITE
 			bite_alert_timer = 0.0
+			hook_quality = "none"
+			_setup_fish_stats()
 			AudioManager.play_bite_alert()
-			# Position the biting fish
-			biting_fish_pos = Vector2(hook_pos.x + randf_range(-150, 150), hook_pos.y + randf_range(-30, 30))
+			# Position the biting fish at the visible candidate
+			var candidate = nearby_fish[candidate_index] if candidate_index != -1 else nearby_fish[randi() % nearby_fish.size()]
+			biting_fish_pos = Vector2(candidate["x"], candidate["y"])
 			biting_fish_target = hook_pos
+			candidate["flee"] = true
 			_spawn_bubble(hook_pos, 5)
+			bite_ready_timer = 0.0
 		else:
-			_calculate_bite_time()
-			wait_timer = 0.0
+			# Keep waiting until a visible fish reaches bite threshold
+			wait_timer = bite_time * 0.7
 	
 	if Input.is_action_just_pressed("interact"):
 		_end_fishing()
@@ -242,7 +409,7 @@ func _process_bite(delta: float) -> void:
 	biting_fish_pos = biting_fish_pos.lerp(biting_fish_target, delta * 3.0)
 	
 	# Vigorous bobber movement
-	bobber_pos.y = water_line_y + sin(bite_alert_timer * 15.0) * 10.0
+	bobber_pos.y = surface_y + sin(bite_alert_timer * 15.0) * 10.0
 	
 	# Bubbles from fish activity
 	if randi() % 3 == 0:
@@ -253,6 +420,19 @@ func _process_bite(delta: float) -> void:
 		_spawn_splash(bobber_pos, 2)
 	
 	if Input.is_action_just_pressed("reel_in") or Input.is_action_just_pressed("cast_line"):
+		if bite_alert_timer < hook_window_start:
+			AudioManager.play_fish_escape()
+			state = FishingState.ESCAPED
+			return
+		var elapsed = bite_alert_timer - hook_window_start
+		if elapsed <= hook_window_perfect:
+			hook_quality = "perfect"
+		elif elapsed <= hook_window_length:
+			hook_quality = "normal"
+		else:
+			AudioManager.play_fish_escape()
+			state = FishingState.ESCAPED
+			return
 		# Legendary fish = boss encounter!
 		if bite_fish and bite_fish.rarity == "legendary":
 			_launch_boss_encounter()
@@ -261,6 +441,8 @@ func _process_bite(delta: float) -> void:
 		tension = 0.5
 		catch_progress = 0.0
 		_setup_minigame_difficulty()
+		if hook_quality == "perfect":
+			fish_fatigue = min(1.0, fish_fatigue + 0.35)
 		_spawn_splash(bobber_pos, 10)
 		AudioManager.play_splash(1.2)
 	
@@ -283,7 +465,9 @@ func _process_minigame(delta: float) -> void:
 	fish_pull_timer += delta
 	if fish_pull_timer >= 0.3 + randf() * 0.5:
 		fish_pull_timer = 0.0
-		fish_pull_direction = randf_range(-1.0, 1.0) * bite_fish.fight_difficulty
+		var aggression = 0.6 + fish_aggression * 0.8
+		fish_pull_direction = randf_range(-1.0, 1.0) * bite_fish.fight_difficulty * aggression
+		fish_pull_vertical = randf_range(-1.0, 1.0) * bite_fish.fight_difficulty * aggression
 		# Visual: fish jerks
 		fish_fight_offset = Vector2(randf_range(-30, 30), randf_range(-15, 15))
 		_spawn_bubble(hook_pos + fish_fight_offset, 3)
@@ -297,7 +481,8 @@ func _process_minigame(delta: float) -> void:
 	
 	# Player reels
 	if Input.is_action_pressed("reel_in"):
-		tension += delta * GameData.get_rod_reel_speed() * 0.8
+		var reel_bonus = 1.0 + fish_fatigue * 0.8
+		tension += delta * GameData.get_rod_reel_speed() * 0.8 * reel_bonus
 		# Reel bubbles + sound
 		if randi() % 4 == 0:
 			AudioManager.play_reel_tick()
@@ -310,7 +495,11 @@ func _process_minigame(delta: float) -> void:
 	# Progress
 	var in_zone = abs(tension - sweet_zone_pos) < sweet_zone_size / 2.0
 	if in_zone:
-		catch_progress += delta * 0.4 * GameData.get_rod_reel_speed()
+		var hook_bonus = 1.0 if hook_quality == "normal" else 1.25
+		if hook_quality == "perfect":
+			hook_bonus = 1.6
+		catch_progress += delta * 0.4 * GameData.get_rod_reel_speed() * hook_bonus
+		fish_fatigue = clampf(fish_fatigue + delta * 0.15, 0.0, 1.0)
 		# Hook moves up toward surface as progress increases
 		hook_pos.y = lerp(hook_target_depth, water_line_y + 20.0, catch_progress)
 	else:
@@ -318,13 +507,21 @@ func _process_minigame(delta: float) -> void:
 		# Fish pulls hook deeper
 		hook_pos.y = move_toward(hook_pos.y, hook_target_depth, 20.0 * delta)
 	catch_progress = clampf(catch_progress, 0.0, 1.0)
+	# Apply fish pull directions
+	hook_pos.x += fish_pull_direction * 20.0 * delta
+	hook_pos.y += fish_pull_vertical * 12.0 * delta
+	var viewport_size = get_viewport_rect().size
+	hook_pos.x = clampf(hook_pos.x, 40.0, viewport_size.x - 40.0)
+	hook_pos.y = clampf(hook_pos.y, water_line_y + bait_min_depth, water_line_y + bait_max_depth)
 	
 	# Fish position follows hook during fight
 	biting_fish_pos = hook_pos + fish_fight_offset
 	
 	# Line break
 	if tension >= 0.98:
-		if randf() > GameData.get_line_strength() * 0.4:
+		var durability = max(0.1, GameData.get_line_strength())
+		var break_chance = clampf(fish_strength / (durability * 8.0), 0.1, 0.9)
+		if randf() < break_chance:
 			_spawn_splash(bobber_pos, 12)
 			AudioManager.play_line_snap()
 			state = FishingState.ESCAPED
@@ -413,17 +610,97 @@ func _update_nearby_fish(delta: float) -> void:
 		if fish["flee"]:
 			fish["x"] += fish["speed"] * fish["dir"] * 3.0 * delta
 			fish["alpha"] = max(0, fish.get("alpha", 0.5) - delta)
+			if fish["alpha"] <= 0.0:
+				fish["remove"] = true
 			continue
+		if state == FishingState.WAITING:
+			var behavior = fish.get("behavior", "small")
+			var lure_movement = clampf(bait_movement_energy, 0.0, 1.0)
+			var movement_speed_norm = clampf(bait_movement_speed / 400.0, 0.0, 1.0)
+			var curiosity = fish.get("fishCuriosity", 1.0)
+			var caution = fish.get("fishCaution", 1.0)
+			var interest = fish.get("interest", 0.0)
+			var suspicion = fish.get("suspicion", 0.0)
+			# Small fish like gentle movement, predators like faster movement, rare fish are patient
+			var behavior_bonus = 1.0
+			if behavior == "small":
+				behavior_bonus = 1.0 - movement_speed_norm * 0.6
+			elif behavior == "predator":
+				behavior_bonus = 0.6 + movement_speed_norm * 0.9
+			else:
+				behavior_bonus = 0.5
+			interest += (lure_movement * curiosity * behavior_bonus * 55.0 + bait_attract_strength * 10.0) * delta
+			suspicion += movement_speed_norm * caution * 18.0 * delta
+			suspicion = max(0.0, suspicion - (0.8 + curiosity * 0.3) * delta)
+			fish["interest"] = clampf(interest, 0.0, 100.0)
+			fish["suspicion"] = clampf(suspicion, 0.0, 120.0)
+			if fish["suspicion"] > fish.get("suspicion_limit", 90.0):
+				fish["flee"] = true
+				fish["interested"] = false
+				continue
+			if fish["interest"] >= fish.get("bite_threshold", 70.0):
+				fish["interested"] = true
 		
 		if fish["interested"] and state == FishingState.WAITING:
-			# Swim toward hook
-			var dir_to_hook = hook_pos.x - fish["x"]
-			fish["x"] += sign(dir_to_hook) * fish["speed"] * 0.5 * delta
-			fish["y"] = lerp(fish["y"], hook_pos.y + randf_range(-20, 20), delta * 0.5)
+			var interest_val: float = float(fish.get("interest", 0.0))
+			var bite_threshold: float = float(fish.get("bite_threshold", 70.0))
+			var suspicion_val: float = float(fish.get("suspicion", 0.0))
+			var suspicion_limit: float = float(fish.get("suspicion_limit", 90.0))
+			var cue := "approach"
+			if suspicion_val > suspicion_limit * 0.7:
+				cue = "doubt"
+			elif interest_val < bite_threshold * 0.6:
+				cue = "approach"
+			elif interest_val < bite_threshold * 0.9:
+				cue = "circle"
+			else:
+				cue = "near_bite"
+			fish["cue"] = cue
+			fish["cue_timer"] = fish.get("cue_timer", 0.0) + delta
+			if cue == "approach":
+				var dir_to_hook = hook_pos.x - fish["x"]
+				# Update direction based on target
+				if abs(dir_to_hook) > 10:
+					fish["dir"] = sign(dir_to_hook)
+				
+				var approach_speed = fish["speed"] * 0.7
+				fish["x"] = move_toward(fish["x"], hook_pos.x - fish["dir"] * 30.0, approach_speed * delta)
+				fish["y"] = lerp(fish["y"], hook_pos.y + sin(wave_time * 2.0) * 10.0, 0.8 * delta)
+				fish["tail_amp"] = lerp(fish.get("tail_amp", 1.0), 1.25, 0.1)
+			elif cue == "circle":
+				fish["circle_angle"] = fish.get("circle_angle", 0.0) + delta * (1.2 + randf() * 0.4)
+				var radius = fish.get("circle_radius", 40.0)
+				var target = hook_pos + Vector2(cos(fish["circle_angle"]) * radius, sin(fish["circle_angle"]) * radius * 0.5)
+				fish["x"] = lerp(fish["x"], target.x, 1.2 * delta)
+				fish["y"] = lerp(fish["y"], target.y, 1.2 * delta)
+				fish["dir"] = sign(cos(fish["circle_angle"] + 0.1)) # Face movement direction
+				fish["tail_amp"] = lerp(fish.get("tail_amp", 1.0), 1.3, 0.1)
+			elif cue == "doubt":
+				fish["doubt_phase"] = fish.get("doubt_phase", 0.0) + delta * 2.5
+				var wobble = sin(fish["doubt_phase"]) * 45.0
+				var target = hook_pos + Vector2(wobble - fish["dir"] * 50.0, sin(wave_time) * 20.0)
+				fish["x"] = lerp(fish["x"], target.x, 0.6 * delta)
+				fish["y"] = lerp(fish["y"], target.y, 0.6 * delta)
+				fish["tail_amp"] = lerp(fish.get("tail_amp", 1.0), 1.4, 0.1)
+			elif cue == "near_bite":
+				fish["circle_angle"] = fish.get("circle_angle", 0.0) + delta * 3.0
+				var radius2 = max(15.0, fish.get("circle_radius", 40.0) * 0.5)
+				var target2 = hook_pos + Vector2(cos(fish["circle_angle"]) * radius2, sin(fish["circle_angle"]) * radius2 * 0.3)
+				fish["x"] = lerp(fish["x"], target2.x, 2.5 * delta)
+				fish["y"] = lerp(fish["y"], target2.y, 2.5 * delta)
+				fish["dir"] = sign(cos(fish["circle_angle"] + 0.1))
+				fish["tail_amp"] = lerp(fish.get("tail_amp", 1.0), 1.8, 0.2)
 		else:
-			# Normal swimming
-			fish["x"] += fish["speed"] * fish["dir"] * delta
-			fish["y"] = fish["base_y"] + sin(wave_time * 1.5 + fish["wave_phase"]) * 12.0
+			# Normal swimming with organic drift
+			var drift = sin(wave_time * 0.4 + fish["wave_phase"]) * 15.0 * delta
+			fish["x"] += (fish["speed"] * fish["dir"] * delta) + drift
+			fish["y"] = fish["base_y"] + sin(wave_time * 1.2 + fish["wave_phase"]) * 18.0
+			fish["tail_amp"] = lerp(fish.get("tail_amp", 1.0), 1.0, 0.1)
+		
+		# Bait movement attracts fish
+		if state == FishingState.WAITING and bait_attract_strength > 0.0 and not fish["flee"]:
+			if randf() < 0.015 + bait_attract_strength * 0.08:
+				fish["interested"] = true
 		
 		# Wrap
 		if fish["x"] > 2000:
@@ -432,6 +709,13 @@ func _update_nearby_fish(delta: float) -> void:
 		elif fish["x"] < -50:
 			fish["x"] = 2000.0
 			fish["dir"] = -1.0
+
+	# Remove fully fled fish
+	var idx := nearby_fish.size() - 1
+	while idx >= 0:
+		if nearby_fish[idx].get("remove", false):
+			nearby_fish.remove_at(idx)
+		idx -= 1
 
 
 func _update_particles(delta: float) -> void:
@@ -483,16 +767,25 @@ func _calculate_bite_time() -> void:
 		return
 	
 	var total_weight = 0.0
+	var weights = []
 	for fish in available_fish:
-		total_weight += FishDatabase.get_spawn_weight(fish.rarity) * GameData.get_bait_attract()
+		var w = FishDatabase.get_spawn_weight(fish.rarity) * GameData.get_bait_attract()
+		# Giảm tỉ lệ cá to dựa trên độ gần bờ (càng gần x=0 càng ít cá to)
+		if zone_id == "coastal" and fish.max_size > 1.0:
+			var x_pos = spot_data.get("x", 1000.0)
+			var proximity_to_shore = clampf(1.0 - (x_pos / 2000.0), 0.0, 1.0)
+			var dynamic_penalty = lerpf(0.3, 0.02, proximity_to_shore)
+			w *= dynamic_penalty
+		weights.append(w)
+		total_weight += w
 	
 	var roll = randf() * total_weight
 	var accumulated = 0.0
 	bite_fish = available_fish[0]
-	for fish in available_fish:
-		accumulated += FishDatabase.get_spawn_weight(fish.rarity) * GameData.get_bait_attract()
+	for i in range(available_fish.size()):
+		accumulated += weights[i]
 		if roll <= accumulated:
-			bite_fish = fish
+			bite_fish = available_fish[i]
 			break
 	
 	match bite_fish.rarity:
@@ -511,7 +804,20 @@ func _setup_minigame_difficulty() -> void:
 		sweet_zone_size = clampf(sweet_zone_size, 0.08, 0.3)
 
 
+func _setup_fish_stats() -> void:
+	if bite_fish == null:
+		return
+	var difficulty = clampf(bite_fish.fight_difficulty, 0.0, 1.0)
+	var size_avg = (bite_fish.min_size + bite_fish.max_size) * 0.5
+	fish_weight = size_avg
+	fish_strength = lerpf(2.0, 10.0, difficulty)
+	fish_stamina = lerpf(3.0, 12.0, clampf(size_avg / 6.0, 0.0, 1.0))
+	fish_aggression = lerpf(0.2, 1.0, difficulty)
+	fish_fatigue = 0.0
+
+
 func _end_fishing() -> void:
+	bait_camera_end.emit()
 	fishing_ended.emit()
 
 
@@ -531,9 +837,10 @@ func _draw() -> void:
 	draw_rect(Rect2(0, 0, sw, sh), Color(0, 0, 0, 0.1))
 	
 	# === UNDERWATER NEARBY FISH ===
-	for fish in nearby_fish:
-		if fish["y"] > water_line_y:
-			_draw_fish_body(Vector2(fish["x"], fish["y"]), fish["size"], fish["color"], fish["dir"])
+	# Commented out to use the 3D visuals handled by world.gd
+	# for fish in nearby_fish:
+	# 	if fish["y"] > water_line_y:
+	# 		_draw_fish_body(Vector2(fish["x"], fish["y"]), fish["size"], Color(fish["color"].r, fish["color"].g, fish["color"].b, 0.4), fish["dir"], fish.get("tail_amp", 1.0))
 	
 	# === BUBBLES ===
 	for b in bubbles:
@@ -545,7 +852,8 @@ func _draw() -> void:
 		_draw_fishing_line()
 	
 	# === BITING / FIGHTING FISH ===
-	if state == FishingState.FISH_BITE or state == FishingState.MINIGAME:
+	# Hiding 2D drawing to use 3D visual from World
+	if false and (state == FishingState.FISH_BITE or state == FishingState.MINIGAME):
 		if bite_fish:
 			var fish_size = bite_fish.max_size * 18.0
 			var fish_col = bite_fish.color
@@ -558,7 +866,7 @@ func _draw() -> void:
 					draw_circle(biting_fish_pos, fish_size * (1.5 + float(r) * 0.3), Color(rarity_col.r, rarity_col.g, rarity_col.b, 0.06))
 	
 	# === CAUGHT FISH (rising out of water) ===
-	if state == FishingState.CAUGHT and bite_fish:
+	if false and state == FishingState.CAUGHT and bite_fish:
 		var fish_size = bite_fish.max_size * 20.0
 		_draw_fish_body(biting_fish_pos, fish_size, bite_fish.color, 1.0)
 		# Victory glow
@@ -631,7 +939,7 @@ func _draw_hook(pos: Vector2) -> void:
 	draw_circle(pos + Vector2(3, 13), 2.0, Color(0.9, 0.5, 0.35, 0.7))
 
 
-func _draw_fish_body(pos: Vector2, size: float, col: Color, direction: float) -> void:
+func _draw_fish_body(pos: Vector2, size: float, col: Color, direction: float, tail_amp: float = 1.0) -> void:
 	var dir = sign(direction)
 	if dir == 0: dir = 1.0
 	
@@ -657,7 +965,7 @@ func _draw_fish_body(pos: Vector2, size: float, col: Color, direction: float) ->
 	draw_colored_polygon(belly_pts, Color(col.r + 0.15, col.g + 0.15, col.b + 0.1, col.a * 0.7))
 	
 	# Tail
-	var tail_wave = sin(wave_time * 6.0) * size * 0.1
+	var tail_wave = sin(wave_time * 6.0) * size * 0.1 * tail_amp
 	var tail_pts = PackedVector2Array([
 		pos + Vector2(-size * 0.9 * dir, 0),
 		pos + Vector2(-size * 1.35 * dir, -size * 0.4 + tail_wave),
