@@ -1,3 +1,7 @@
 [gd_scene format=3 uid="uid://br811xpq8dcs"]
 
-[node name="water_simulation" type="Node3D" unique_id=1691733830]
+[node name="DirectionalLight3D" type="Node3D" unique_id=1691733830]
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=460856721]
+light_volumetric_fog_energy = 3.158
+shadow_enabled = true
