@@ -34,8 +34,8 @@ var line_start: Vector2 = Vector2.ZERO
 var hook_pos: Vector2 = Vector2.ZERO
 var hook_target_depth: float = 200.0
 var line_sink_speed: float = 80.0
-var bait_move_speed_x: float = 220.0
-var bait_move_speed_y: float = 180.0
+var bait_move_speed_x: float = 80.0
+var bait_move_speed_y: float = 50.0
 var bait_min_depth: float = 40.0
 var bait_max_depth: float = 480.0
 var bait_attract_strength: float = 0.0
@@ -222,7 +222,7 @@ func _spawn_sparkle(pos: Vector2, color: Color, count: int = 8) -> void:
 		})
 
 
-func _process(delta: float) -> void:
+func _process(delta: float)	 -> void:
 	wave_time += delta
 	if fish_spawn_timer > 0.0:
 		fish_spawn_timer = max(0.0, fish_spawn_timer - delta)

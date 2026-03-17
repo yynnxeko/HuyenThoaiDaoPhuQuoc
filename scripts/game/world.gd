@@ -244,11 +244,31 @@ func _update_camera(delta: float) -> void:
 			var bait_x3d = _x2d_to_3d(bait_x2d)
 			var depth_y = lerpf(water_level_y, water_level_y - bait_max_depth_3d, bait_depth_ratio)
 			var target = Vector3(bait_x3d, depth_y, boat.position.z)
-			var cam_height = lerpf(bait_camera_above, bait_camera_below, bait_depth_ratio)
-			var desired_pos = target + Vector3(0, cam_height, bait_camera_z_offset)
-			camera.position = camera.position.lerp(desired_pos, camera_follow_speed * delta)
+			
+			# === ĐÃ SỬA: GÓC NHÌN MỒI DỨT KHOÁT ===
+			var desired_pos = Vector3.ZERO
+			
+			if bait_depth_ratio < 0.05:
+				# Mồi vừa chạm nước chưa chìm -> Camera đứng trên cao nhìn rõ phao
+				desired_pos = target + Vector3(0, 4.0, 5.5)
+			else:
+				# Mồi bắt đầu chìm -> Camera LẶN HẲN xuống dưới nước
+				desired_pos = target + Vector3(0, 1.0, 4.0)
+				# Ép Y của camera luôn phải chìm sâu hơn mặt nước ít nhất 0.5 đơn vị
+				desired_pos.y = min(desired_pos.y, water_level_y - 0.5)
+			
+			# === XỬ LÝ LỖI "NỬA CHÌM NỬA NỔI" ===
+			var dynamic_speed = camera_follow_speed
+			var is_crossing_surface = (camera.position.y > water_level_y and desired_pos.y < water_level_y) or (camera.position.y < water_level_y and desired_pos.y > water_level_y)
+			
+			# Nếu đang trong quá trình lặn qua mặt nước, hoặc đang kẹt ở ranh giới
+			if is_crossing_surface or abs(camera.position.y - water_level_y) < 1.0:
+				dynamic_speed *= 4.0 # Lặn cái "vèo" xuống, không lề mề ở giữa mặt nước
+				
+			camera.position = camera.position.lerp(desired_pos, dynamic_speed * delta)
 			camera.look_at(target, Vector3.UP)
 			camera.fov = lerpf(camera.fov, bait_camera_fov, 6.0 * delta)
+			
 		elif camera_mode == CameraMode.TOP_DOWN_FISHING:
 			var target = boat.position + top_down_offset
 			var desired_pos = target + Vector3(0, top_down_height, 0)
@@ -397,15 +417,19 @@ func _update_underwater_effects(delta: float) -> void:
 func _check_zone() -> void:
 	if boat == null:
 		return
-	# Convert 3D position to 2D zone position (scale factor)
+	# Convert 3D position to 2D zone position
 	var world_x = (boat.position.x + world_width / 2.0) / world_width * 12000.0
 	var new_zone = ZoneDatabase.get_zone_at_position(world_x)
+	
 	if new_zone and (current_zone_info == null or new_zone.id != current_zone_info.id):
 		current_zone_info = new_zone
 		AudioManager.play_zone_enter()
 		if hud and hud.has_method("show_zone_name"):
 			hud.show_zone_name(current_zone_info.name_vn)
-		# Không gọi _respawn_underwater_props() nữa vì đã có hệ thống chunk tự động
+		
+		# Tái tạo môi trường khi sang map mới
+		_respawn_underwater_props()
+		_spawn_decorative_fish() # THÊM DÒNG NÀY: Xóa cá map cũ, đẻ cá map mới
 
 
 func _sync_water_level() -> void:
@@ -592,6 +616,10 @@ func _spawn_chunk(idx: int) -> void:
 func _sync_seaweed_nodes() -> void:
 	seaweed_nodes.clear()
 	for chunk in spawned_chunks.values():
+		# ĐIỂM SỬA LỖI: Kiểm tra xem chunk này còn tồn tại không, nếu là "bóng ma" thì bỏ qua
+		if not is_instance_valid(chunk):
+			continue
+			
 		for p in chunk.get_children():
 			if p.get_meta("type", "") == "seaweed":
 				seaweed_nodes.append(p)
@@ -747,103 +775,139 @@ func _update_bubbles(delta: float) -> void:
 			bubble_nodes.remove_at(i)
 
 
+# ==========================================
+# SPAWN CÁ THEO KHU VỰC VÀ BÁM SÁT THUYỀN
+# ==========================================
 func _spawn_decorative_fish() -> void:
-	var all_fish_types = FishDatabase.get_all_fish()
+	# 1. DỌN SẠCH CÁ CŨ ĐỂ GIẢI PHÓNG RAM
+	for fish in fish_nodes:
+		if is_instance_valid(fish["node"]):
+			fish["node"].queue_free()
+	fish_nodes.clear()
 	
-	for i in range(12):
-		var f_data = all_fish_types.pick_random()
-		var asset_path = fish_id_to_asset.get(f_data.id, "res://assets/sprites/ca/bream_fish__dorade_royale.glb")
+	# Lấy vị trí hiện tại của thuyền để làm tâm sinh cá
+	var boat_x = 0.0
+	if boat != null: boat_x = boat.position.x
+
+	# 2. LỌC DANH SÁCH CÁ THEO KHU VỰC HIỆN TẠI (ZONE)
+	var zone_id = "coastal"
+	if current_zone_info != null:
+		zone_id = current_zone_info.id
+
+	var all_fish_types = FishDatabase.get_all_fish()
+	var zone_fish = []
+	for f in all_fish_types:
+		# ĐÃ SỬA: Lấy trực tiếp thuộc tính "zones" của Object FishType
+		if zone_id in f.zones: 
+			zone_fish.append(f)
+			
+	# Nếu database lỗi chưa có con nào, lấy tạm tất cả để game không bị trống
+	if zone_fish.is_empty(): zone_fish = all_fish_types
+
+	# Số lượng đàn cá (Biển sâu/Vực thẳm thì tối tăm và ít cá hơn)
+	var school_count = 6
+	if zone_id in ["deep_sea", "abyss"]: school_count = 3 
+
+	# 3. TIẾN HÀNH ĐẺ CÁ MỚI XUNG QUANH THUYỀN
+	for b in range(school_count):
+		var f_data = zone_fish.pick_random()
+		var asset_path = fish_id_to_asset.get(f_data.id, "res://assets/sprites/ca/guppy_fish.glb")
 		var fish_scene = load(asset_path)
 		if not fish_scene: continue
 		
-		var fish_instance = fish_scene.instantiate()
-		var wrapper = Node3D.new()
-		add_child(wrapper)
-		wrapper.add_child(fish_instance)
+		# Vị trí đàn cá: Random XUNG QUANH CHIẾC THUYỀN (bán kính 35m) thay vì toàn bản đồ
+		var spawn_x = boat_x + randf_range(-35.0, 35.0)
+		var spawn_y = water_level_y - randf_range(2.0, 10.0)
 		
-		fish_instance.position = Vector3.ZERO
-		fish_instance.rotation.y = PI/2 
+		# Map càng sâu, cá càng lặn sâu (Đồng bộ với UI của bạn)
+		if zone_id == "coral_reef": spawn_y = water_level_y - randf_range(5.0, 15.0)
+		elif zone_id == "open_sea": spawn_y = water_level_y - randf_range(8.0, 18.0)
+		elif zone_id in ["deep_sea", "abyss"]: spawn_y = water_level_y - randf_range(15.0, 25.0)
+			
+		var school_center = Vector3(spawn_x, spawn_y, randf_range(-15.0, 10.0))
+		var school_size = randi_range(2, 5) 
+		if f_data.rarity in ["epic", "legendary"] or f_data.max_size > 2.0: school_size = 1 
 		
-		# Position according to zones
-		var zone_id = f_data.zones.pick_random()
-		var zone = ZoneDatabase.get_zone_by_id(zone_id)
-		var x_min = -world_width / 2.0
-		var x_max = world_width / 2.0
-		
-		if zone:
-			x_min = _x2d_to_3d(zone.world_x_start)
-			x_max = _x2d_to_3d(zone.world_x_end)
-		
-		wrapper.position = Vector3(
-			randf_range(x_min, x_max),
-			randf_range(-25, -15), # Đưa xuống sâu hơn hẳn để tránh bị lộ ở ven bờ
-			randf_range(-4.0, 4.0)
-		)
-		
-		var s = f_data.max_size * 0.04 # Giảm tỉ lệ chung từ 0.08 xuống 0.04
-		if f_data.id == "ca_map": s *= 0.02 # Giảm mạnh tỉ lệ cá mập (model này cực to)
-		if f_data.rarity == "legendary": s = clampf(s, 0.12, 0.25)
-		wrapper.scale = Vector3(s, s, s)
-		
-		var swim_dir = [-1.0, 1.0].pick_random()
-		wrapper.rotation.y = PI/2 if swim_dir > 0 else -PI/2
-		
-		_setup_node_animation(fish_instance, 1.0 + f_data.speed * 0.02)
-		
-		fish_nodes.append({
-			"node": wrapper,
-			"speed": f_data.speed * 0.05,
-			"dir": swim_dir,
-			"wave_offset": randf() * TAU,
-			"base_y": wrapper.position.y,
-			"x_min": x_min,
-			"x_max": x_max
-		})
+		for i in range(school_size):
+			var fish_instance = fish_scene.instantiate()
+			var wrapper = Node3D.new()
+			add_child(wrapper)
+			wrapper.add_child(fish_instance)
+			
+			fish_instance.position = Vector3.ZERO
+			fish_instance.rotation.y = PI/2 
+			
+			wrapper.position = school_center + Vector3(randf_range(-3, 3), randf_range(-1, 1), randf_range(-3, 3))
+			
+			var base_scale = f_data.max_size * 0.05
+			var s = clampf(base_scale, 0.15, 1.5)
+			if f_data.rarity == "legendary": s = clampf(base_scale, 0.8, 2.5)
+				
+			wrapper.scale = Vector3(s * randf_range(0.85, 1.15), s * randf_range(0.85, 1.15), s * randf_range(0.85, 1.15))
+			_setup_fish_animation(fish_instance, 1.0 + f_data.speed * 0.02)
+			
+			fish_nodes.append({
+				"node": wrapper,
+				"base_speed": f_data.speed * 0.04 + randf_range(-0.01, 0.01),
+				"velocity": Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)).normalized() * f_data.speed * 0.04,
+				"target_pos": wrapper.position,
+				"think_timer": 0.0
+			})
 
 
+# ==========================================
+# AI CÁ BƠI LƯỢN (BÁM SÁT THUYỀN THEO KHU VỰC)
+# ==========================================
 func _update_decorative_fish(delta: float) -> void:
-	var time_val = Time.get_ticks_msec() * 0.001
 	for fish in fish_nodes:
 		var node: Node3D = fish["node"]
-		if node == null: continue
+		if not is_instance_valid(node): continue
 		
-		# Save previous position for velocity calculation
-		var prev_pos = node.position
-		
-		# Horizontal movement
-		node.position.x += fish["speed"] * fish["dir"] * delta
-		
-		# Vertical movement (sine wave)
-		var wave_speed = 1.2
-		var wave_amp = 0.4
-		node.position.y = fish["base_y"] + sin(time_val * wave_speed + fish["wave_offset"]) * wave_amp
-		node.position.y = clampf(node.position.y, -25.0, -3.0) # Giới hạn không cho lên cao hơn -3.0
-		
-		# Boundary wrap within its zone
-		var x_min = fish.get("x_min", -world_width / 2.0)
-		var x_max = fish.get("x_max", world_width / 2.0)
-		if node.position.x > x_max + 2:
-			node.position.x = x_min - 2
-			prev_pos = node.position
-		elif node.position.x < x_min - 2:
-			node.position.x = x_max + 2
-			prev_pos = node.position
+		# 1. TƯ DUY TÌM ĐƯỜNG MỚI
+		fish["think_timer"] -= delta
+		if fish["think_timer"] <= 0.0 or node.global_position.distance_to(fish["target_pos"]) < 1.5:
+			fish["think_timer"] = randf_range(3.0, 7.0)
 			
-		# Smooth Rotation
-		var velocity = (node.position - prev_pos) / (delta if delta > 0 else 0.001)
-		
-		# Yaw (Direction)
-		var target_yaw = PI/2 if fish["dir"] > 0 else -PI/2
-		# Only update yaw if we're not just wrapping or at zero velocity
-		if abs(velocity.x) > 0.01:
-			node.rotation.y = lerp_angle(node.rotation.y, target_yaw, 4.0 * delta)
+			var forward_dir = fish["velocity"].normalized()
+			if forward_dir == Vector3.ZERO: forward_dir = Vector3.FORWARD
 			
-		# Pitch (Tilting up/down)
-		# If dir is negative, we need to flip the pitch logic because the fish is facing the other way
-		var pitch_factor = 1.0 if fish["dir"] > 0 else -1.0
-		var target_pitch = clamp(velocity.y * 0.8 * pitch_factor, -0.5, 0.5)
-		node.rotation.z = lerp_angle(node.rotation.z, target_pitch, 3.0 * delta)
-
+			var random_steer = Vector3(randf_range(-1, 1), randf_range(-0.3, 0.3), randf_range(-1, 1)).normalized()
+			var new_dir = (forward_dir * 1.5 + random_steer).normalized()
+			fish["target_pos"] = node.global_position + new_dir * randf_range(5.0, 15.0)
+			
+			# === ĐÃ SỬA: ÉP CÁ CHỈ BƠI LOANH QUANH THUYỀN ===
+			var current_boat_x = boat.position.x if boat != null else 0.0
+			
+			# Xích cá lại, không cho bơi cách thuyền quá 45 mét (để luôn nằm trong tầm nhìn)
+			fish["target_pos"].x = clampf(fish["target_pos"].x, current_boat_x - 45.0, current_boat_x + 45.0)
+			
+			# Lặn không vượt quá đáy hoặc nổi lên quá mặt nước (dùng chung cho mọi loại cá)
+			fish["target_pos"].y = clampf(fish["target_pos"].y, water_level_y - 25.0, water_level_y - 2.0)
+			fish["target_pos"].z = clampf(fish["target_pos"].z, -15.0, 15.0)
+			
+		# 2. BẺ LÁI & DI CHUYỂN
+		var desired_velocity = (fish["target_pos"] - node.global_position).normalized() * fish["base_speed"]
+		fish["velocity"] = fish["velocity"].lerp(desired_velocity, delta * 1.2)
+		node.global_position += fish["velocity"] * delta
+		
+		# 3. NGHIÊNG MÌNH ÔM CUA
+		if fish["velocity"].length_squared() > 0.001:
+			var look_target = node.global_position + fish["velocity"]
+			var current_quat = node.quaternion
+			
+			node.look_at(look_target, Vector3.UP)
+			var target_quat = node.quaternion
+			node.quaternion = current_quat.slerp(target_quat, 3.0 * delta)
+			
+			var pitch_angle = clampf(fish["velocity"].y * 1.5, -0.4, 0.4)
+			node.rotation.x = lerp_angle(node.rotation.x, pitch_angle, 4.0 * delta)
+			
+			var turn_rate = current_quat.angle_to(target_quat)
+			var turn_dir = sign(current_quat.get_axis().dot(Vector3.UP)) 
+			if turn_dir == 0: turn_dir = 1.0 
+			var roll_angle = turn_rate * turn_dir * -1.5 
+			
+			node.rotation.z = lerp_angle(node.rotation.z, clampf(roll_angle, -0.6, 0.6), 2.0 * delta)
 
 func _check_fishing_spot() -> void:
 	if boat == null: return
@@ -1258,3 +1322,53 @@ func _update_boat_waves(delta: float) -> void:
 	
 	boat.rotation.z = lerp_angle(boat.rotation.z, pitch_angle, 3.0 * delta)
 	boat.rotation.x = lerp_angle(boat.rotation.x, roll_angle, 3.0 * delta)
+
+# ==========================================
+# HÀM CHẠY ANIMATION CHO CÁ (BỊ THẤT LẠC)
+# ==========================================
+func _setup_fish_animation(node: Node, anim_speed: float = 1.0) -> void:
+	var anim_player: AnimationPlayer = null
+	
+	# Tìm AnimationPlayer trong node hoặc con của nó
+	if node is AnimationPlayer:
+		anim_player = node
+	else:
+		anim_player = node.get_node_or_null("AnimationPlayer")
+		if not anim_player:
+			for child in node.get_children():
+				if child is AnimationPlayer:
+					anim_player = child
+					break
+				var deeper = child.get_node_or_null("AnimationPlayer")
+				if deeper:
+					anim_player = deeper
+					break
+	
+	if anim_player:
+		var anim_list = anim_player.get_animation_list()
+		if anim_list.is_empty():
+			return
+			
+		var anim_to_play = ""
+		
+		# Ưu tiên tìm các animation có tên liên quan đến "swim"
+		var swim_keywords = ["swim", "swimming", "move", "action"]
+		for key in swim_keywords:
+			for a in anim_list:
+				if a.to_lower().contains(key):
+					anim_to_play = a
+					break
+			if anim_to_play != "": break
+			
+		# Nếu không tìm thấy, chơi animation đầu tiên
+		if anim_to_play == "":
+			anim_to_play = anim_list[0]
+			
+		if anim_to_play != "":
+			# Đảm bảo animation lặp (loop)
+			var anim = anim_player.get_animation(anim_to_play)
+			if anim:
+				anim.loop_mode = Animation.LOOP_LINEAR
+			
+			anim_player.play(anim_to_play)
+			anim_player.speed_scale = anim_speed
