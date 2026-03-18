@@ -1,4 +1,4 @@
-[gd_resource type="VisualShader" format=3 uid="uid://c7d7kiigmb7le"]
+[gd_resource type="VisualShader" format=3 uid="uid://dw2wbuapg30sg"]
 
 [sub_resource type="VisualShaderNodeColorParameter" id="VisualShaderNodeColorParameter_jw5th"]
 parameter_name = "shallow_water"

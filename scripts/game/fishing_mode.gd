@@ -902,11 +902,6 @@ func _setup_fish_stats() -> void:
 	fish_fatigue = 0.0
 
 
-func _end_fishing() -> void:
-	bait_camera_end.emit()
-	fishing_ended.emit()
-
-
 func _input(event: InputEvent) -> void:
 	if state == FishingState.IDLE or state == FishingState.WAITING:
 		if event.is_action_pressed("fishing_toggle"):

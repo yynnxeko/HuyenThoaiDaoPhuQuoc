@@ -1,9 +1,9 @@
-[gd_resource type="StandardMaterial3D" format=3 uid="uid://nc7fpw5shjum"]
+[gd_resource type="StandardMaterial3D" format=3]
 
-[ext_resource type="Texture2D" uid="uid://dnniywqq1qgig" path="res://tile_albedo.png" id="1"]
-[ext_resource type="Texture2D" uid="uid://bg2ftd18whva7" path="res://tile_orm.png" id="2"]
-[ext_resource type="Texture2D" uid="uid://fhq0e7xu2ujx" path="res://tile_normal.png" id="3"]
-[ext_resource type="Texture2D" uid="uid://c7ffis6hplpih" path="res://tile_depth.png" id="4"]
+[ext_resource type="Texture2D" path="res://scenes/water_simulation/tile_albedo.png" id="1"]
+[ext_resource type="Texture2D" path="res://scenes/water_simulation/tile_orm.png" id="2"]
+[ext_resource type="Texture2D" path="res://scenes/water_simulation/tile_normal.png" id="3"]
+[ext_resource type="Texture2D" path="res://scenes/water_simulation/tile_depth.png" id="4"]
 
 [resource]
 albedo_texture = ExtResource("1")

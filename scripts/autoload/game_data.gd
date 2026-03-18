@@ -126,10 +126,10 @@ func upgrade_line() -> bool:
 
 
 func _check_zone_unlocks() -> void:
-	if boat_level >= 1 and "reef" not in unlocked_zones:
+	if boat_level >= 0 and "reef" not in unlocked_zones:
 		unlocked_zones.append("reef")
 		zone_unlocked.emit("reef")
-	if boat_level >= 2 and "open_sea" not in unlocked_zones:
+	if boat_level >= 0 and "open_sea" not in unlocked_zones:
 		unlocked_zones.append("open_sea")
 		zone_unlocked.emit("open_sea")
 	if boat_level >= 3 and "deep_sea" not in unlocked_zones:
