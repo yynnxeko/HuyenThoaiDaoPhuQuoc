@@ -90,10 +90,10 @@ var fish_id_to_asset = {
 	"ca_hong": "res://assets/sprites/ca/paracheirodon_innesi___tetra_neon.glb",
 	"ca_bop": "res://assets/sprites/ca/paracheirodon_innesi___tetra_neon.glb",
 	"ca_ngu": "res://assets/sprites/ca/jikin_goldfish.glb",
-	"ca_kiem": "res://assets/sprites/ca/tosakin_goldfish.glb",
+	"ca_kiem": "res://assets/sprites/ca/model_62a_-_shortfin_mako.glb",
 	"ca_map": "res://assets/sprites/ca/model_62a_-_shortfin_mako.glb",
 	"muc_khong_lo": "res://assets/sprites/ca/bream_fish__dorade_royale.glb",
-	"rong_bien": "res://assets/sprites/ca/tosakin_goldfish.glb",
+	"rong_bien": "res://assets/sprites/ca/jikin_goldfish.glb",
 	"rua_vang": "res://assets/sprites/ca/jikin_goldfish.glb"
 }
 
@@ -829,7 +829,7 @@ func _spawn_decorative_fish() -> void:
 	# 3. TIẾN HÀNH ĐẺ CÁ MỚI XUNG QUANH THUYỀN
 	for b in range(school_count):
 		var f_data = zone_fish.pick_random()
-		var asset_path = fish_id_to_asset.get(f_data.id, "res://assets/sprites/ca/guppy_fish.glb")
+		var asset_path = fish_id_to_asset.get(f_data.id, "res://assets/sprites/ca/bream_fish__dorade_royale.glb")
 		var fish_scene = load(asset_path)
 		if not fish_scene: continue
 		
@@ -857,9 +857,13 @@ func _spawn_decorative_fish() -> void:
 			
 			wrapper.position = school_center + Vector3(randf_range(-3, 3), randf_range(-1, 1), randf_range(-3, 3))
 			
-			var base_scale = f_data.max_size * 0.05
-			var s = clampf(base_scale, 0.15, 1.5)
-			if f_data.rarity == "legendary": s = clampf(base_scale, 0.8, 2.5)
+			var base_scale = f_data.max_size * 0.03
+			var s = clampf(base_scale, 0.08, 0.4)
+			if f_data.rarity == "legendary": s = clampf(base_scale, 0.2, 0.6)
+			
+			if asset_path.contains("jikin_goldfish"): s *= 0.03
+			elif asset_path.contains("model_62a"): s *= 0.012
+			elif asset_path.contains("bream_fish"): s *= 0.3
 				
 			wrapper.scale = Vector3(s * randf_range(0.85, 1.15), s * randf_range(0.85, 1.15), s * randf_range(0.85, 1.15))
 			_setup_fish_animation(fish_instance, 1.0 + f_data.speed * 0.02)
@@ -900,13 +904,17 @@ func _update_decorative_fish(delta: float) -> void:
 			fish["target_pos"].x = clampf(fish["target_pos"].x, current_boat_x - 45.0, current_boat_x + 45.0)
 			
 			# Lặn không vượt quá đáy hoặc nổi lên quá mặt nước (dùng chung cho mọi loại cá)
-			fish["target_pos"].y = clampf(fish["target_pos"].y, water_level_y - 25.0, water_level_y - 2.0)
-			fish["target_pos"].z = clampf(fish["target_pos"].z, -15.0, 15.0)
+			fish["target_pos"].y = clampf(fish["target_pos"].y, water_level_y - 25.0, water_level_y - 4.5)
+			fish["target_pos"].z = clampf(fish["target_pos"].z, -25.0, 25.0)
 			
 		# 2. BẺ LÁI & DI CHUYỂN
 		var desired_velocity = (fish["target_pos"] - node.global_position).normalized() * fish["base_speed"]
 		fish["velocity"] = fish["velocity"].lerp(desired_velocity, delta * 1.2)
 		node.global_position += fish["velocity"] * delta
+		
+		# KHÔNG CHO BAY TRÊN MẶT NƯỚC (Ép sâu hơn phòng ngừa gốc tọa độ model sai)
+		if node.global_position.y >= water_level_y - 3.5:
+			node.global_position.y = water_level_y - 3.5
 		
 		# 3. NGHIÊNG MÌNH ÔM CUA
 		if fish["velocity"].length_squared() > 0.001:
@@ -1050,11 +1058,19 @@ func _on_visual_fish_update(pos_2d: Vector2, fish_data, p_visible: bool, is_figh
 		# Nội suy di chuyển mượt mà
 		var follow_speed = 12.0 if is_fighting else 4.0
 		active_fish_3d.global_position = active_fish_3d.global_position.lerp(final_target_pos, follow_speed * get_process_delta_time())
+		if active_fish_3d.global_position.y > water_level_y - 2.0:
+			active_fish_3d.global_position.y = water_level_y - 2.0
 		
 		# Scale kích thước cá
-		var s = fish_data.max_size * 0.05
-		if fish_data.id == "ca_map": s *= 0.02
-		if fish_data.rarity == "legendary": s = clampf(s, 0.15, 0.4)
+		var s = fish_data.max_size * 0.03
+		if fish_data.id == "ca_map": s *= 0.015
+		s = clampf(s, 0.08, 0.5) # Giới hạn size
+		
+		var asset_path = fish_id_to_asset.get(fish_data.id, "res://assets/sprites/ca/bream_fish__dorade_royale.glb")
+		if asset_path.contains("jikin_goldfish"): s *= 0.03
+		elif asset_path.contains("model_62a"): s *= 0.012
+		elif asset_path.contains("bream_fish"): s *= 0.3
+		
 		active_fish_3d.scale = active_fish_3d.scale.lerp(Vector3(s, s, s), 5.0 * get_process_delta_time())
 		
 		# ==========================================
@@ -1124,9 +1140,18 @@ func _on_nearby_visual_update(fish_list: Array) -> void:
 		
 		# Smooth position
 		node.global_position = node.global_position.lerp(target_pos, 5.0 * get_process_delta_time())
+		if node.global_position.y > water_level_y - 2.5:
+			node.global_position.y = water_level_y - 2.5
 		
-		var s = f_data_2d.size * 0.0018
-		if f_id == "ca_map": s *= 0.03
+		var s = f_data_2d.size * 0.0012
+		if f_id == "ca_map": s *= 0.015
+		s = clampf(s, 0.08, 0.5) # Giới hạn size
+		
+		var asset_path = fish_id_to_asset.get(f_id, "res://assets/sprites/ca/bream_fish__dorade_royale.glb")
+		if asset_path.contains("jikin_goldfish"): s *= 0.03
+		elif asset_path.contains("model_62a"): s *= 0.012
+		elif asset_path.contains("bream_fish"): s *= 0.3
+		
 		node.scale = node.scale.lerp(Vector3(s, s, s), 4.0 * get_process_delta_time())
 		
 		# Smooth rotation
