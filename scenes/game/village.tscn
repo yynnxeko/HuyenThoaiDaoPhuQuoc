@@ -10,6 +10,7 @@
 [ext_resource type="PackedScene" uid="uid://lm0ktsuwtkru" path="res://assets/sprites/village/tho_moc.glb" id="8_tho_moc"]
 [ext_resource type="PackedScene" uid="uid://dghjwvre6ka3w" path="res://assets/sprites/village/ba_ban_rau.glb" id="9_ba_ban_rau"]
 [ext_resource type="PackedScene" uid="uid://br3m0fjmmmfj5" path="res://assets/sprites/village/sap_rau.glb" id="10_sap_rau"]
+[ext_resource type="AudioStream" uid="uid://ck13ij7hhld5o" path="res://assets/sound/ba_ban_rau/rau_muong_xa_lach_tuoi_roi_day_cau_oi_005a2f68-af11-417b-8f86-79da75f543d3.mp3" id="11_te3k4"]
 [ext_resource type="PackedScene" uid="uid://cnavtqnxa5p4m" path="res://assets/sprites/village/tiem_tap_hoa.glb" id="11_tiem_tap_hoa"]
 [ext_resource type="PackedScene" uid="uid://bthlf36lbegt3" path="res://assets/sprites/village/nha_tho_xay.glb" id="12_nha_tho_xay"]
 [ext_resource type="PackedScene" uid="uid://j4i5136myixl" path="res://assets/sprites/village/bui_tre.glb" id="13_bui_tre"]
@@ -23,6 +24,8 @@
 [ext_resource type="PackedScene" uid="uid://dvt1flw2t4s7m" path="res://assets/sprites/village/rau03.glb" id="17_rau3"]
 [ext_resource type="PackedScene" uid="uid://0yojwenahw1k" path="res://assets/sprites/village/thuyen_thung.glb" id="17_thuyen_thung"]
 [ext_resource type="PackedScene" uid="uid://brefqpsdn8xcf" path="res://assets/sprites/village/nhavanhoa_old.glb" id="18_nhavanhoa_old"]
+[ext_resource type="PackedScene" path="res://scenes/ui/dialogue_box.tscn" id="19_dialogue"]
+[ext_resource type="Script" uid="uid://cn44pmodbukwl" path="res://scripts/game/npc_interaction.gd" id="20_npc"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMat_v"]
 sky_top_color = Color(0.2, 0.5, 0.8, 1)
@@ -44,6 +47,9 @@ size = Vector3(9.258733, 6.8434277, 7.9064693)
 
 [sub_resource type="BoxShape3D" id="NhaShape2"]
 size = Vector3(9.258733, 6.8434277, 7.9064693)
+
+[sub_resource type="CylinderShape3D" id="InteractionShape"]
+radius = 1.5
 
 [sub_resource type="BoxShape3D" id="QuayShape1"]
 size = Vector3(4.5749025, 5, 2.3550472)
@@ -162,6 +168,14 @@ transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -12, 0, -10)
 [node name="BanThit" parent="Architecture/Quay1_Body" unique_id=1111111 instance=ExtResource("7_ban_thit")]
 transform = Transform3D(2.5, 0, 0, 0, 2.5, 0, 0, 0, 2.5, 15.010971, 0, 1.5057659)
 
+[node name="InteractionArea" type="Area3D" parent="Architecture/Quay1_Body/BanThit" unique_id=1608404785]
+script = ExtResource("20_npc")
+character_name = "Người bán thịt"
+dialogue_lines = Array[String](["Chào cậu, hôm nay tôi có thịt heo đảo rất tươi!", "Cậu muốn mua một ít không?"])
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay1_Body/BanThit/InteractionArea" unique_id=1459088948]
+shape = SubResource("InteractionShape")
+
 [node name="Quay2_Body" type="StaticBody3D" parent="Architecture" unique_id=799913635]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 12, 0, -10)
 
@@ -172,6 +186,15 @@ shape = SubResource("QuayShape1")
 [node name="BanCa" parent="Architecture/Quay2_Body" unique_id=2222222 instance=ExtResource("6_ban_ca")]
 transform = Transform3D(5.5, 0, 0, 0, 5.5, 0, 0, 0, 5.5, -20.566406, -0.15558243, 8.453617)
 
+[node name="InteractionArea" type="Area3D" parent="Architecture/Quay2_Body/BanCa" unique_id=1984011852]
+script = ExtResource("20_npc")
+character_name = "Người bán cá"
+custom_action = 1
+dialogue_lines = Array[String](["Cá tươi mới bắt về đây, mua đi mua đi", "Cẩn thận ở ngoài biển nhé, sóng hôm nay hơi to đấy."])
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay2_Body/BanCa/InteractionArea" unique_id=120755125]
+shape = SubResource("InteractionShape")
+
 [node name="Quay3_Body" type="StaticBody3D" parent="Architecture" unique_id=521863210]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -12, 0, -25)
 
@@ -180,6 +203,14 @@ transform = Transform3D(0.6, 0, 0, 0, 0.6, 0, 0, 0, 0.6, 0, 0, 0)
 
 [node name="ThoMoc" parent="Architecture/Quay3_Body" unique_id=3333333 instance=ExtResource("8_tho_moc")]
 transform = Transform3D(-2.8, 0, -4.2278825e-07, 0, 2.8, 0, 4.2278825e-07, 0, -2.8, -8.707314, 0.16039324, 28.697742)
+
+[node name="InteractionArea" type="Area3D" parent="Architecture/Quay3_Body/ThoMoc" unique_id=1590227638]
+script = ExtResource("20_npc")
+character_name = "Thợ mộc"
+dialogue_lines = Array[String](["Cần sửa thuyền hay làm xây nhà gì thì cứ tìm tôi nhé.", "Gỗ lim Phú Quốc là bền nhất đấy!"])
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay3_Body/ThoMoc/InteractionArea" unique_id=1098428605]
+shape = SubResource("InteractionShape")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay3_Body" unique_id=2139064802]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.08411598, 2.1032715, 0.07058239)
@@ -197,6 +228,15 @@ shape = SubResource("QuayShape3")
 
 [node name="BaBanRau" parent="Architecture/Quay4_Body" unique_id=4444444 instance=ExtResource("9_ba_ban_rau")]
 transform = Transform3D(2.5, 0, 0, 0, 2.5, 0, 0, 0, 2.5, 2.295248, 0, 9.266053)
+
+[node name="InteractionArea" type="Area3D" parent="Architecture/Quay4_Body/BaBanRau" unique_id=1973724934]
+script = ExtResource("20_npc")
+character_name = "Bà bán rau"
+dialogue_lines = Array[String](["Rau muống, xà lách... tươi rói đây cậu ơi!", "Mua ủng hộ bà đi, rau sạch bà tự trồng đấy."])
+dialogue_audio = Array[AudioStream]([ExtResource("11_te3k4")])
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay4_Body/BaBanRau/InteractionArea" unique_id=1978493221]
+shape = SubResource("InteractionShape")
 
 [node name="TiemTapHoa_Body" type="StaticBody3D" parent="Architecture" unique_id=5555555]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -35, 0, 0)
@@ -264,7 +304,7 @@ transform = Transform3D(-10, 0, 8.74228e-07, 0, 10, 0, -8.74228e-07, 0, -10, -80
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 20)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Ground" unique_id=857156854]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0032129288, 0.019395828, 0.00034332275)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.007164955, 0.052661896, 0.0026111603)
 material_override = SubResource("GroundMat")
 mesh = SubResource("GroundMesh")
 
@@ -335,6 +375,8 @@ transform = Transform3D(3.5, 0, 0, 0, 3.5, 0, 0, 0, 3.5, -4.0393786, 0.2006464, 
 
 [node name="ThuyenThung2" parent="CoastalAssets" unique_id=151515151 instance=ExtResource("17_thuyen_thung")]
 transform = Transform3D(3.5, 0, 0, 0, 3.5, 0, 0, 0, 3.5, -15.103489, 0, -73.113556)
+
+[node name="DialogueBox" parent="." unique_id=270075448 instance=ExtResource("19_dialogue")]
 
 [node name="UI" type="CanvasLayer" parent="." unique_id=414508771]
 

@@ -232,9 +232,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if state != GameState.NAVIGATING:
 		return
 	if event is InputEventKey and event.pressed:
-		if event.keycode == KEY_T:
-			_open_market()
-		elif event.keycode == KEY_U:
+		if event.keycode == KEY_U:
 			_open_shop()
 
 
@@ -1205,21 +1203,6 @@ func _open_collection() -> void:
 			col_root.queue_free()
 		)
 		add_child(col_root)
-
-
-func _open_market() -> void:
-	if state == GameState.UI_OPEN: return
-	state = GameState.UI_OPEN
-	AudioManager.play_ui_open()
-	var market_scene = load("res://scenes/ui/market.tscn")
-	if market_scene:
-		var market_root = market_scene.instantiate()
-		var market_ctrl = market_root.get_child(0)
-		market_ctrl.market_closed.connect(func():
-			state = GameState.NAVIGATING
-			market_root.queue_free()
-		)
-		add_child(market_root)
 
 
 func _open_shop() -> void:
