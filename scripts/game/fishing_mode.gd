@@ -116,6 +116,23 @@ func setup(spot: Dictionary, zone, boat: Node = null, camera: Camera3D = null) -
 	bait_prev_pos = hook_pos
 	_spawn_nearby_fish()
 
+func start_fishing() -> void:
+	if state == FishingState.IDLE:
+		state = FishingState.CASTING
+		cast_power = 0.0
+		cast_charging = true
+
+func _end_fishing() -> void:
+	# Reset all states
+	state = FishingState.IDLE
+	bite_fish = null
+	nearby_fish.clear()
+	bubbles.clear()
+	splashes.clear()
+	sparkles.clear()
+	bait_camera_end.emit()
+	fishing_ended.emit()
+
 
 func _ready() -> void:
 	_calculate_bite_time()
@@ -308,7 +325,12 @@ func _process_casting(delta: float) -> void:
 		if Input.is_action_just_released("cast_line"):
 			cast_charging = false
 			hook_target_depth = water_line_y + 50.0 + cast_power * 300.0
-			var cast_dir = 1.0 if (boat_ref and boat_ref.facing_right) else 1.0
+			var cast_dir = 1.0
+			if boat_ref and boat_ref is Node2D:
+				cast_dir = 1.0 if (boat_ref as Node2D).get("facing_right") else -1.0
+			elif boat_ref and boat_ref is Node3D:
+				var boat_3d := boat_ref as Node3D
+				cast_dir = 1.0 if boat_3d.global_basis.x.x >= 0.0 else -1.0
 			
 			cast_start_pos = line_start
 			# Ném càng xa đường bay càng dài
@@ -443,7 +465,7 @@ func _process_waiting(delta: float) -> void:
 			# Keep waiting until a visible fish reaches bite threshold
 			wait_timer = bite_time * 0.7
 	
-	if Input.is_action_just_pressed("interact"):
+	if Input.is_action_just_pressed("fishing_toggle"):
 		_end_fishing()
 
 
@@ -887,7 +909,7 @@ func _end_fishing() -> void:
 
 func _input(event: InputEvent) -> void:
 	if state == FishingState.IDLE or state == FishingState.WAITING:
-		if event.is_action_pressed("interact"):
+		if event.is_action_pressed("fishing_toggle"):
 			_end_fishing()
 
 

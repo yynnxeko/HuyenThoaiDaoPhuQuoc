@@ -12,8 +12,10 @@ enum CameraMode { BOAT_THIRD_PERSON, TOP_DOWN_FISHING, BAIT_FOLLOW }
 var camera_mode: CameraMode = CameraMode.BOAT_THIRD_PERSON
 
 # World
-var world_width: float = 200.0  # 3D units
-var camera_follow_speed: float = 3.0
+# World
+var world_width: float = 2000.0  # Increased 10x (Length)
+var world_depth: float = 35.0   # 5x of original 7.0 (Width)
+var camera_follow_speed: float = 8.0
 var top_down_height: float = 16.0
 var top_down_offset: Vector3 = Vector3(0, 0, 0)
 var top_down_fov: float = 60.0
@@ -45,7 +47,7 @@ var last_chunk_index: int = -999
 
 # Underwater assets (optional)
 var underwater_prop_catalog = [
-	{"type": "coral", "path": "res://assets/coral.glb"},
+	{"type": "coral", "path": "res://assets/sprites/sanho/coral.glb"},
 	{"type": "rock", "path": "res://assets/sprites/rock/river_rock.glb"},
 	{"type": "seaweed", "path": "res://assets/sprites/seaweed/sea_weed.glb"},
 	{"type": "coral_main", "path": "res://assets/sprites/sanho/coral.glb"},
@@ -53,6 +55,7 @@ var underwater_prop_catalog = [
 	{"type": "starfish", "path": "res://assets/sprites/saobien/starfish.glb"},
 	{"type": "deep_coral", "path": "res://assets/sprites/sanho/deep-sea_corals.glb"}
 ]
+var _underwater_prop_scenes: Array = [] # [{type: String, scene: PackedScene}]
 
 # References (set in _ready from scene tree)
 var boat: Node3D = null
@@ -67,6 +70,7 @@ var fishing_spots: Array = []
 
 # Zone
 var current_zone_info = null
+var current_zone: int = 0
 
 # HUD CanvasLayer reference
 var hud_canvas: CanvasLayer = null
@@ -107,9 +111,11 @@ func _ready() -> void:
 	# Get references
 	boat = $Boat3D
 	camera = $Camera3D
-	ocean_mesh = $OceanMesh
+	ocean_mesh = $Ocean
 	if camera:
 		default_camera_fov = camera.fov
+		camera.current = true
+		print("[World] Camera current:", camera.current)
 	hud_canvas = $HUD
 	hud = $HUD/HUDControl
 	sun_light = $DirectionalLight3D
@@ -124,11 +130,12 @@ func _ready() -> void:
 
 	# Underwater layers
 	_setup_underwater_layers()
-	ocean = $OceanMesh
+	ocean = $Ocean
+	_cache_underwater_prop_scenes()
 	
-	if ocean and camera:
-		if ocean.has_method("set"): 
-			ocean.follow_camera = camera
+	# OceanController uses follow_target (not follow_camera)
+	if ocean and boat and ocean is OceanController:
+		(ocean as OceanController).follow_target = boat
 	
 	_setup_moon_and_stars()
 	
@@ -138,36 +145,50 @@ func _ready() -> void:
 	# Spawn decorative fish
 	_spawn_decorative_fish()
 	
-	# Initial zone
-	current_zone_info = ZoneDatabase.get_zone_at_position(boat.position.x * 60.0)
+	# Initial zone (distance-based)
+	current_zone = _get_zone_by_distance(boat.global_position.length() if boat else 0.0)
+	if hud and hud.has_method("show_zone_name"):
+		hud.show_zone_name("Entering Zone " + str(current_zone))
 	
 	# Keyboard shortcut hints on HUD
 	if hud and hud.has_method("show_message"):
 		hud.show_message("W/S: Ga | A/D: Lai | E: Cau | M: Ban do | T: Cho | U: Nang cap | B: Ve lang")
 
 
+func _cache_underwater_prop_scenes() -> void:
+	_underwater_prop_scenes.clear()
+	for item in underwater_prop_catalog:
+		var t := str(item.get("type", ""))
+		var p := str(item.get("path", ""))
+		var scene: PackedScene = load(p) if p != "" else null
+		_underwater_prop_scenes.append({"type": t, "scene": scene})
+
+
 func _process(delta: float) -> void:
 	if state == GameState.NAVIGATING:
 		_process_navigation(delta)
-	
-	# Update camera to follow boat
-	_update_camera(delta)
-	
-	# THÊM VÀO ĐÂY:
+		_check_zone()
+		
+	# Legacy Node3D boat visual bobbing (RigidBody boats ignore internally)
 	_update_boat_waves(delta)
 	
-	# Update day/night cycle on sun
+	# Lighting is visual, keep in _process (once)
 	_update_lighting(delta)
 	
 	# Update HUD boat rotation for compass
 	if hud and boat:
 		hud.boat_rotation = boat.rotation.y
-	
-	# Update camera to follow boat
-	_update_camera(delta)
-	
-	# Update day/night cycle on sun
-	_update_lighting(delta)
+		if boat is RigidBody3D:
+			hud.boat_speed = (boat as RigidBody3D).linear_velocity.length()
+			hud.boat_pos = (boat as RigidBody3D).global_position
+		else:
+			hud.boat_speed = 0.0
+			hud.boat_pos = boat.global_position
+		
+	# For non-physics boats, camera follow in _process.
+	# For RigidBody boats, camera follow runs in _physics_process to avoid jitter/ghosting.
+	if not (boat is RigidBody3D):
+		_update_camera(delta)
 	
 	# Update decorative fish
 	_update_decorative_fish(delta)
@@ -178,11 +199,17 @@ func _process(delta: float) -> void:
 	# Update sương mù (Fog) dưới nước
 	_update_underwater_effects(delta)
 	
-	# Zone check
-	_check_zone()
-	
 	# Cập nhật chunk dựa trên vị trí tàu
 	_update_dynamic_chunks()
+
+
+func _physics_process(delta: float) -> void:
+	# When the boat is a RigidBody3D, follow it on the physics tick to avoid
+	# visible stutter from mixing render and physics rates.
+	if boat is RigidBody3D:
+		_update_camera(delta)
+
+
 
 
 func _process_navigation(_delta: float) -> void:
@@ -201,14 +228,24 @@ func _process_navigation(_delta: float) -> void:
 		throttle_input -= 1.0
 	
 	if boat:
-		boat.steer_input = steer_input
-		boat.throttle_input = throttle_input
+		if boat.has_method("set_input"):
+			boat.call("set_input", steer_input, throttle_input)
 		# Keep boat inside gameplay area.
-		boat.position.x = clampf(boat.position.x, -world_width / 2.0, world_width / 2.0)
-		boat.position.z = clampf(boat.position.z, -7.0, 7.0)
+		if boat is RigidBody3D:
+			var rb := boat as RigidBody3D
+			var gp := rb.global_position
+			var clamped_x = clampf(gp.x, -world_width / 2.0, world_width / 2.0)
+			var clamped_z = clampf(gp.z, -world_depth, world_depth)
+			if clamped_x != gp.x or clamped_z != gp.z:
+				gp.x = clamped_x
+				gp.z = clamped_z
+				rb.global_position = gp
+		else:
+			boat.position.x = clampf(boat.position.x, -world_width / 2.0, world_width / 2.0)
+			boat.position.z = clampf(boat.position.z, -world_depth, world_depth)
 	
 	# Interact
-	if Input.is_action_just_pressed("interact"):
+	if Input.is_action_just_pressed("fishing_toggle"):
 		_check_fishing_spot()
 	
 	# Return to menu
@@ -240,27 +277,36 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 func _update_camera(delta: float) -> void:
 	if camera and boat:
+		var boat_pos: Vector3 = boat.global_position
 		if camera_mode == CameraMode.BAIT_FOLLOW:
 			var bait_x3d = _x2d_to_3d(bait_x2d)
 			var depth_y = lerpf(water_level_y, water_level_y - bait_max_depth_3d, bait_depth_ratio)
-			var target = Vector3(bait_x3d, depth_y, boat.position.z)
+			var target = Vector3(bait_x3d, depth_y, boat_pos.z)
 			var cam_height = lerpf(bait_camera_above, bait_camera_below, bait_depth_ratio)
 			var desired_pos = target + Vector3(0, cam_height, bait_camera_z_offset)
-			camera.position = camera.position.lerp(desired_pos, camera_follow_speed * delta)
+			var smooth = 1.0 - pow(0.001, delta)  # smoothing chuẩn vật lý
+
+			camera.global_position = camera.global_position.lerp(desired_pos, smooth)
 			camera.look_at(target, Vector3.UP)
-			camera.fov = lerpf(camera.fov, bait_camera_fov, 6.0 * delta)
+			camera.fov = lerp(camera.fov, bait_camera_fov, 6.0 * delta)
 		elif camera_mode == CameraMode.TOP_DOWN_FISHING:
-			var target = boat.position + top_down_offset
+			var target = boat_pos + top_down_offset
 			var desired_pos = target + Vector3(0, top_down_height, 0)
-			camera.position = camera.position.lerp(desired_pos, camera_follow_speed * delta)
+			var smooth = 1.0 - pow(0.001, delta)  # smoothing chuẩn vật lý
+
+			camera.global_position = camera.global_position.lerp(desired_pos, smooth)
 			camera.look_at(target, Vector3.FORWARD)
-			camera.fov = lerpf(camera.fov, top_down_fov, 6.0 * delta)
+			camera.fov = lerp(camera.fov, top_down_fov, 6.0 * delta)
 		else:
 			# Chase camera: behind and above boat, looking toward bow.
 			var forward = boat.global_basis.x.normalized()
-			var desired_pos = boat.position - forward * 8.0 + Vector3(0, 3.5, 0)
-			camera.position = camera.position.lerp(desired_pos, camera_follow_speed * delta)
-			camera.look_at(boat.position + forward * 3.0, Vector3.UP)
+			var desired_pos = boat_pos - forward * 8.0 + Vector3(0, 3.5, 0)
+			var smooth = 1.0 - pow(0.001, delta)  # smoothing chuẩn vật lý
+
+			camera.global_position = camera.global_position.lerp(desired_pos, smooth)
+			var target_transform = camera.global_transform.looking_at(boat_pos + forward * 3.0, Vector3.UP)
+			camera.global_transform = camera.global_transform.interpolate_with(target_transform, smooth)
+			
 			camera.fov = lerpf(camera.fov, default_camera_fov, 6.0 * delta)
 
 
@@ -301,18 +347,33 @@ func _update_lighting(_delta: float) -> void:
 			sky_mat.sky_horizon_color = TimeWeather.get_sky_bottom_color()
 	
 	# Update Ocean Shader with lighting
-	if boat and boat.ocean_manager:
-		var ocean_mesh = boat.ocean_manager.get_child(0) as MeshInstance3D
-		if ocean_mesh and ocean_mesh.material_override:
-			var mat = ocean_mesh.material_override as ShaderMaterial
-			if mat:
-				mat.set_shader_parameter("sun_color", sun_light.light_color)
-				# Calculate factor based on sun elevation
-				var sun_factor = clamp(1.0 - TimeWeather.get_sun_position_normalized(), 0.0, 1.0)
-				# Push factor higher during sunset/dawn
-				if period == "evening" or period == "dawn":
-					sun_factor = max(sun_factor, 0.6)
-				mat.set_shader_parameter("sun_factor", sun_factor)
+	if ocean_mesh and ocean_mesh.material_override and sun_light:
+		var mat = ocean_mesh.material_override as ShaderMaterial
+		if mat:
+			# These params are optional; only set if shader uses them.
+			var shader: Shader = mat.shader
+			if shader:
+				var uniforms: Array = []
+				if shader.has_method("get_shader_uniform_list"):
+					uniforms = shader.get_shader_uniform_list()
+				var has_sun_color := false
+				var has_sun_factor := false
+				for u in uniforms:
+					if typeof(u) == TYPE_DICTIONARY:
+						var uname := str(u.get("name", ""))
+						if uname == "sun_color":
+							has_sun_color = true
+						elif uname == "sun_factor":
+							has_sun_factor = true
+				if has_sun_color:
+					mat.set_shader_parameter("sun_color", sun_light.light_color)
+				if has_sun_factor:
+					# Calculate factor based on sun elevation
+					var sun_factor = clamp(1.0 - TimeWeather.get_sun_position_normalized(), 0.0, 1.0)
+					# Push factor higher during sunset/dawn
+					if period == "evening" or period == "dawn":
+						sun_factor = max(sun_factor, 0.6)
+					mat.set_shader_parameter("sun_factor", sun_factor)
 	
 	# Update Moon and Stars visibility
 	if moon_mesh:
@@ -397,15 +458,37 @@ func _update_underwater_effects(delta: float) -> void:
 func _check_zone() -> void:
 	if boat == null:
 		return
-	# Convert 3D position to 2D zone position (scale factor)
-	var world_x = (boat.position.x + world_width / 2.0) / world_width * 12000.0
-	var new_zone = ZoneDatabase.get_zone_at_position(world_x)
-	if new_zone and (current_zone_info == null or new_zone.id != current_zone_info.id):
-		current_zone_info = new_zone
+	var distance := boat.global_position.length()
+	var new_zone := _get_zone_by_distance(distance)
+	if new_zone != current_zone:
+		current_zone = new_zone
+		print("Zone:", current_zone, "distance:", snappedf(distance, 1.0))
 		AudioManager.play_zone_enter()
 		if hud and hud.has_method("show_zone_name"):
-			hud.show_zone_name(current_zone_info.name_vn)
-		# Không gọi _respawn_underwater_props() nữa vì đã có hệ thống chunk tự động
+			hud.show_zone_name("Entering Zone " + str(current_zone))
+		
+		# Deep sea response (Zone 4–5): stronger waves + darker water.
+		var oc := ocean_mesh as OceanController
+		if oc:
+			if current_zone >= 4:
+				oc.deep_sea_multiplier = 2.0
+				oc.deep_sea_threshold = 0.0
+				oc.deep_color = Color(0.0, 0.05, 0.12, 1.0)
+			else:
+				oc.deep_sea_multiplier = 2.0
+				oc.deep_sea_threshold = 1000.0
+				oc.deep_color = Color(0.05, 0.1, 0.2, 1.0)
+
+func _get_zone_by_distance(distance: float) -> int:
+	if distance < 500.0:
+		return 1
+	if distance < 1000.0:
+		return 2
+	if distance < 1500.0:
+		return 3
+	if distance < 2000.0:
+		return 4
+	return 5
 
 
 func _sync_water_level() -> void:
@@ -638,12 +721,10 @@ func _get_zone_profile() -> Dictionary:
 
 func _pick_underwater_prop(weights: Dictionary) -> Dictionary:
 	var available: Array = []
-	for item in underwater_prop_catalog:
-		var scene = load(item["path"])
-		if scene:
-			available.append({"type": item["type"], "scene": scene})
-		else:
-			available.append({"type": item["type"], "scene": null})
+	if _underwater_prop_scenes.is_empty():
+		_cache_underwater_prop_scenes()
+	for item in _underwater_prop_scenes:
+		available.append({"type": item.get("type", ""), "scene": item.get("scene", null)})
 	if available.is_empty():
 		return {}
 	var total_weight := 0.0
@@ -1238,6 +1319,10 @@ func _setup_node_animation(node: Node, anim_speed: float = 1.0) -> void:
 # ==========================================
 func _update_boat_waves(delta: float) -> void:
 	if boat == null:
+		return
+	# Legacy visual bobbing for the old Node3D boat controller.
+	# When using a RigidBody3D buoyancy boat, never write transforms manually.
+	if boat is RigidBody3D:
 		return
 		
 	var time_sec = Time.get_ticks_msec() * 0.001
