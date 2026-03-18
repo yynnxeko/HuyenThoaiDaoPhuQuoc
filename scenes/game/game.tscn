@@ -10,6 +10,7 @@
 [ext_resource type="Script" uid="uid://b3vd0kenx4wvb" path="res://scenes/game/water_ani.gd" id="6_5i0tg"]
 [ext_resource type="Script" uid="uid://cwd4efpwtb4i0" path="res://scripts/weather/weather_manager.gd" id="8_weather"]
 [ext_resource type="Shader" uid="uid://cglif3rbd4yw8" path="res://shaders/rain_screen.gdshader" id="9_rain_screen"]
+[ext_resource type="Script" path="res://scripts/game/sky_day_night.gd" id="10_sky_switcher"]
 
 [sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_kp23o"]
 panorama = ExtResource("2_4j704")
@@ -25,7 +26,6 @@ ssao_enabled = true
 glow_enabled = true
 glow_intensity = 0.8
 glow_bloom = 0.2
-fog_enabled = false
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_ocean"]
 render_priority = 0
@@ -236,6 +236,9 @@ script = ExtResource("1_world")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=356525084]
 environment = SubResource("Environment_1")
+script = ExtResource("10_sky_switcher")
+sun_light_path = NodePath("../DirectionalLight3D")
+switch_sky = true
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1619812727]
 transform = Transform3D(1, 0, 0, 0, 0.866, 0.5, 0, -0.5, 0.866, 0, 20, 10)
