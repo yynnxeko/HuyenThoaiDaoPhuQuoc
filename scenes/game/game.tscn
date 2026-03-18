@@ -138,10 +138,6 @@ func _unhandled_input(event):
 		pitch = clamp(pitch, min_pitch, max_pitch)
 "
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_rain_screen"]
-shader = ExtResource("9_rain_screen")
-shader_parameter/rain_amount = 0.0
-
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rain_drop"]
 transparency = 1
 shading_mode = 0
@@ -164,6 +160,10 @@ color = Color(0.75, 0.85, 1, 0.35)
 
 [sub_resource type="QuadMesh" id="QuadMesh_rain_drop"]
 size = Vector2(0.03, 0.35)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_rain_screen"]
+shader = ExtResource("9_rain_screen")
+shader_parameter/rain_amount = 0.0
 
 [sub_resource type="Gradient" id="Gradient_lfrn8"]
 offsets = PackedFloat32Array(0, 0.98992443, 1)
@@ -245,12 +245,12 @@ transform = Transform3D(1, 0, 0, 0, 0.866, 0.5, 0, -0.5, 0.866, 0, 20, 10)
 light_color = Color(1, 0.95, 0.85, 1)
 shadow_enabled = true
 
-[node name="WeatherManager" type="Node" parent="." unique_id=2107362401]
+[node name="WeatherManager" type="Node" parent="." unique_id=2107362401 node_paths=PackedStringArray("ocean", "world_env", "sun", "rain_particles", "rain_screen")]
 script = ExtResource("8_weather")
 ocean = NodePath("../Ocean")
 world_env = NodePath("../WorldEnvironment")
 sun = NodePath("../DirectionalLight3D")
-rain_particles = NodePath("../RainParticles")
+rain_particles = NodePath("../Camera3D/RainParticles")
 rain_screen = NodePath("../RainScreenLayer/RainScreen")
 
 [node name="Ocean" type="MeshInstance3D" parent="." unique_id=611099925]
@@ -261,7 +261,7 @@ script = ExtResource("4_2a8rs")
 grid_size = 16.0
 
 [node name="Boat3D" type="RigidBody3D" parent="." unique_id=2047875047 node_paths=PackedStringArray("ocean")]
-transform = Transform3D(-0.99014485, 0.027311359, 0.13735801, 0.02757271, 0.9996199, -2.616989e-09, -0.1373058, 0.0037873322, -0.99052167, 118.68031, 0.6096263, 0)
+transform = Transform3D(0.99880475, -0.027899146, 0.040131796, 0.027921638, 0.9996101, 0, -0.040116142, 0.0011205454, 0.9991945, -130.386, 1, 0)
 mass = 60.0
 linear_damp = 0.05
 angular_damp = 0.05
@@ -272,13 +272,23 @@ ocean = NodePath("../Ocean")
 transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Boat3D" unique_id=1445420136]
-transform = Transform3D(0.99999964, -2.8620707e-07, 2.2351742e-07, 6.2864274e-09, 1, -5.3551048e-08, -5.364418e-07, 1.6996637e-08, 1, 0.16399384, 0.17499995, 0.0010051727)
+transform = Transform3D(0.99999964, -6.2864203e-09, 5.36442e-07, 6.2864274e-09, 1, -1.6996488e-08, -5.364418e-07, 1.6996491e-08, 1, 0.178, -0.2, 0.001)
 shape = SubResource("BoxShape3D_2a8rs")
 
 [node name="Camera3D" type="Camera3D" parent="." unique_id=564460432]
 fov = 50.0
 far = 300.0
 script = SubResource("GDScript_2a8rs")
+
+[node name="RainParticles" type="GPUParticles3D" parent="Camera3D" unique_id=722164025]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 25, 0)
+material_override = SubResource("StandardMaterial3D_rain_drop")
+emitting = false
+amount = 1000000
+sub_emitter = NodePath(".")
+visibility_aabb = AABB(-120, -50, -120, 240, 100, 240)
+process_material = SubResource("ParticleProcessMaterial_rain")
+draw_pass_1 = SubResource("QuadMesh_rain_drop")
 
 [node name="HUD" type="CanvasLayer" parent="." unique_id=2035966363]
 layer = 20
@@ -303,15 +313,6 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-
-[node name="RainParticles" type="GPUParticles3D" parent="." unique_id=722164025]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 25, 0)
-material_override = SubResource("StandardMaterial3D_rain_drop")
-emitting = false
-amount = 12000
-visibility_aabb = AABB(-120, -50, -120, 240, 100, 240)
-process_material = SubResource("ParticleProcessMaterial_rain")
-draw_pass_1 = SubResource("QuadMesh_rain_drop")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1124447894]
 transform = Transform3D(100, 0, 0, 0, -4.371139e-06, 100, 0, -100, -4.371139e-06, 0, 0, 0)
