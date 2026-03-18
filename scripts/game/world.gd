@@ -316,6 +316,25 @@ func _update_lighting(_delta: float) -> void:
 		"night":
 			sun_light.light_color = Color(0.3, 0.35, 0.6)
 			sun_light.light_energy = 0.2
+
+	# Make night actually dark even with HDRI sky:
+	# - Force ambient from COLOR (not SKY), so we can control it.
+	# - Reduce background energy at night to avoid "washed-out" bright scenes.
+	if env and env.environment:
+		var e := env.environment
+		e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		
+		# Start darkening from 18:00, finish by 20:00.
+		var h := fposmod(TimeWeather.game_hour, 24.0)
+		var t := clampf((h - 18.0) / 2.0, 0.0, 1.0) # 0 at 18:00, 1 at 20:00
+		if period == "night":
+			t = 1.0
+		
+		var day_col := Color(0.95, 0.98, 1.0)
+		var night_col := Color(0.12, 0.16, 0.25)
+		e.ambient_light_color = day_col.lerp(night_col, t)
+		e.ambient_light_energy = lerpf(1.0, 0.18, t)
+		e.background_energy_multiplier = lerpf(1.0, 0.25, t)
 	
 	# Update Sky colors from TimeWeather
 	if env and env.environment and env.environment.sky:

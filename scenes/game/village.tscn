@@ -21,6 +21,7 @@
 [ext_resource type="Texture2D" uid="uid://dll1hnq2r5xuc" path="res://assets/sprites/cat/fine_sand_material_1.png" id="19_sand_roughness"]
 [ext_resource type="Texture2D" uid="uid://cn3xvx5geohuw" path="res://assets/sprites/cat/fine_sand_material_2.png" id="20_sand_normal"]
 [ext_resource type="Shader" uid="uid://ukgimt7je4i5" path="res://shaders/sand_shore_dunes.gdshader" id="21_sand_shader"]
+[ext_resource type="Script" path="res://scripts/game/sky_day_night.gd" id="22_sky_switcher"]
 
 [sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_rswfu"]
 panorama = ExtResource("2_47cal")
@@ -64,7 +65,7 @@ emission_energy_multiplier = 4.0
 size = Vector3(5, 0.1, 5)
 
 [sub_resource type="BoxShape3D" id="TerminalShape"]
-size = Vector3(5, 2, 5)
+size = Vector3(8, 3, 8)
 
 [sub_resource type="ShaderMaterial" id="SandDunesMat"]
 render_priority = 0
@@ -134,6 +135,9 @@ script = ExtResource("1_v")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1230044613]
 environment = SubResource("Env_v")
+script = ExtResource("22_sky_switcher")
+sun_light_path = NodePath("../SunLight")
+switch_sky = true
 
 [node name="SunLight" type="DirectionalLight3D" parent="." unique_id=288309497]
 transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 10, 0)
@@ -255,6 +259,7 @@ material_override = SubResource("TerminalMat")
 mesh = SubResource("TerminalMesh")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="FerryTerminal" unique_id=721741137]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15.092492, 0, -8.721512)
 shape = SubResource("TerminalShape")
 
 [node name="Sand" type="StaticBody3D" parent="." unique_id=1241565030]
