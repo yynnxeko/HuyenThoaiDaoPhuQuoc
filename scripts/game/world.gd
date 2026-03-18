@@ -68,6 +68,7 @@ var ocean_mesh: MeshInstance3D = null
 var fishing_spots: Array = []
 var _key_held_t: bool = false
 var _key_held_u: bool = false
+var _is_fish_fighting: bool = false
 
 # Zone
 var current_zone_info = null
@@ -90,10 +91,10 @@ var fish_id_to_asset = {
 	"ca_hong": "res://assets/sprites/ca/paracheirodon_innesi___tetra_neon.glb",
 	"ca_bop": "res://assets/sprites/ca/paracheirodon_innesi___tetra_neon.glb",
 	"ca_ngu": "res://assets/sprites/ca/jikin_goldfish.glb",
-	"ca_kiem": "res://assets/sprites/ca/model_62a_-_shortfin_mako.glb",
+	"ca_kiem": "res://assets/sprites/ca/tosakin_goldfish.glb",
 	"ca_map": "res://assets/sprites/ca/model_62a_-_shortfin_mako.glb",
 	"muc_khong_lo": "res://assets/sprites/ca/bream_fish__dorade_royale.glb",
-	"rong_bien": "res://assets/sprites/ca/jikin_goldfish.glb",
+	"rong_bien": "res://assets/sprites/ca/tosakin_goldfish.glb",
 	"rua_vang": "res://assets/sprites/ca/jikin_goldfish.glb"
 }
 
@@ -251,31 +252,24 @@ func _process_navigation(_delta: float) -> void:
 func _update_camera(delta: float) -> void:
 	if camera and boat:
 		if camera_mode == CameraMode.BAIT_FOLLOW:
-			var bait_x3d = _x2d_to_3d(bait_x2d)
+			# Lấy tọa độ mồi ban đầu (đang bị lỗi ném quá xa)
+			var raw_bait_x3d = _x2d_to_3d(bait_x2d)
+			
+			# === ĐÃ SỬA: KÉO MỒI CÂU LẠI GẦN SÁT MẠN THUYỀN ===
+			# Tính xem mồi đang bị văng ra cách thuyền bao xa
+			var dist_from_boat = raw_bait_x3d - boat.position.x
+			# Bóp nhỏ khoảng cách ném lại và giới hạn TỐI ĐA chỉ được ném xa 8 mét
+			var safe_dist = clampf(dist_from_boat * 0.3, -8.0, 8.0) 
+			var bait_x3d = boat.position.x + safe_dist
+			# ===================================================
+			
 			var depth_y = lerpf(water_level_y, water_level_y - bait_max_depth_3d, bait_depth_ratio)
 			var target = Vector3(bait_x3d, depth_y, boat.position.z)
+			var cam_height = lerpf(bait_camera_above, bait_camera_below, bait_depth_ratio)
 			
-			# === ĐÃ SỬA: GÓC NHÌN MỒI DỨT KHOÁT ===
-			var desired_pos = Vector3.ZERO
+			var desired_pos = target + Vector3(0, cam_height, bait_camera_z_offset)
 			
-			if bait_depth_ratio < 0.05:
-				# Mồi vừa chạm nước chưa chìm -> Camera đứng trên cao nhìn rõ phao
-				desired_pos = target + Vector3(0, 4.0, 5.5)
-			else:
-				# Mồi bắt đầu chìm -> Camera LẶN HẲN xuống dưới nước
-				desired_pos = target + Vector3(0, 1.0, 4.0)
-				# Ép Y của camera luôn phải chìm sâu hơn mặt nước ít nhất 0.5 đơn vị
-				desired_pos.y = min(desired_pos.y, water_level_y - 0.5)
-			
-			# === XỬ LÝ LỖI "NỬA CHÌM NỬA NỔI" ===
-			var dynamic_speed = camera_follow_speed
-			var is_crossing_surface = (camera.position.y > water_level_y and desired_pos.y < water_level_y) or (camera.position.y < water_level_y and desired_pos.y > water_level_y)
-			
-			# Nếu đang trong quá trình lặn qua mặt nước, hoặc đang kẹt ở ranh giới
-			if is_crossing_surface or abs(camera.position.y - water_level_y) < 1.0:
-				dynamic_speed *= 4.0 # Lặn cái "vèo" xuống, không lề mề ở giữa mặt nước
-				
-			camera.position = camera.position.lerp(desired_pos, dynamic_speed * delta)
+			camera.position = camera.position.lerp(desired_pos, camera_follow_speed * delta)
 			camera.look_at(target, Vector3.UP)
 			camera.fov = lerpf(camera.fov, bait_camera_fov, 6.0 * delta)
 			
@@ -285,14 +279,14 @@ func _update_camera(delta: float) -> void:
 			camera.position = camera.position.lerp(desired_pos, camera_follow_speed * delta)
 			camera.look_at(target, Vector3.FORWARD)
 			camera.fov = lerpf(camera.fov, top_down_fov, 6.0 * delta)
+			
 		else:
-			# Chase camera: behind and above boat, looking toward bow.
+			# Chase camera: GÓC NHÌN LÁI TÀU
 			var forward = boat.global_basis.x.normalized()
 			var desired_pos = boat.position - forward * 8.0 + Vector3(0, 3.5, 0)
 			camera.position = camera.position.lerp(desired_pos, camera_follow_speed * delta)
 			camera.look_at(boat.position + forward * 3.0, Vector3.UP)
 			camera.fov = lerpf(camera.fov, default_camera_fov, 6.0 * delta)
-
 
 func _update_lighting(_delta: float) -> void:
 	if sun_light == null:
@@ -797,17 +791,14 @@ func _update_bubbles(delta: float) -> void:
 # SPAWN CÁ THEO KHU VỰC VÀ BÁM SÁT THUYỀN
 # ==========================================
 func _spawn_decorative_fish() -> void:
-	# 1. DỌN SẠCH CÁ CŨ ĐỂ GIẢI PHÓNG RAM
 	for fish in fish_nodes:
 		if is_instance_valid(fish["node"]):
 			fish["node"].queue_free()
 	fish_nodes.clear()
 	
-	# Lấy vị trí hiện tại của thuyền để làm tâm sinh cá
 	var boat_x = 0.0
 	if boat != null: boat_x = boat.position.x
 
-	# 2. LỌC DANH SÁCH CÁ THEO KHU VỰC HIỆN TẠI (ZONE)
 	var zone_id = "coastal"
 	if current_zone_info != null:
 		zone_id = current_zone_info.id
@@ -815,29 +806,23 @@ func _spawn_decorative_fish() -> void:
 	var all_fish_types = FishDatabase.get_all_fish()
 	var zone_fish = []
 	for f in all_fish_types:
-		# ĐÃ SỬA: Lấy trực tiếp thuộc tính "zones" của Object FishType
 		if zone_id in f.zones: 
 			zone_fish.append(f)
 			
-	# Nếu database lỗi chưa có con nào, lấy tạm tất cả để game không bị trống
 	if zone_fish.is_empty(): zone_fish = all_fish_types
 
-	# Số lượng đàn cá (Biển sâu/Vực thẳm thì tối tăm và ít cá hơn)
 	var school_count = 6
 	if zone_id in ["deep_sea", "abyss"]: school_count = 3 
 
-	# 3. TIẾN HÀNH ĐẺ CÁ MỚI XUNG QUANH THUYỀN
 	for b in range(school_count):
 		var f_data = zone_fish.pick_random()
-		var asset_path = fish_id_to_asset.get(f_data.id, "res://assets/sprites/ca/bream_fish__dorade_royale.glb")
+		var asset_path = fish_id_to_asset.get(f_data.id, "res://assets/sprites/ca/guppy_fish.glb")
 		var fish_scene = load(asset_path)
 		if not fish_scene: continue
 		
-		# Vị trí đàn cá: Random XUNG QUANH CHIẾC THUYỀN (bán kính 35m) thay vì toàn bản đồ
 		var spawn_x = boat_x + randf_range(-35.0, 35.0)
 		var spawn_y = water_level_y - randf_range(2.0, 10.0)
 		
-		# Map càng sâu, cá càng lặn sâu (Đồng bộ với UI của bạn)
 		if zone_id == "coral_reef": spawn_y = water_level_y - randf_range(5.0, 15.0)
 		elif zone_id == "open_sea": spawn_y = water_level_y - randf_range(8.0, 18.0)
 		elif zone_id in ["deep_sea", "abyss"]: spawn_y = water_level_y - randf_range(15.0, 25.0)
@@ -857,13 +842,9 @@ func _spawn_decorative_fish() -> void:
 			
 			wrapper.position = school_center + Vector3(randf_range(-3, 3), randf_range(-1, 1), randf_range(-3, 3))
 			
-			var base_scale = f_data.max_size * 0.03
-			var s = clampf(base_scale, 0.08, 0.4)
-			if f_data.rarity == "legendary": s = clampf(base_scale, 0.2, 0.6)
-			
-			if asset_path.contains("jikin_goldfish"): s *= 0.03
-			elif asset_path.contains("model_62a"): s *= 0.012
-			elif asset_path.contains("bream_fish"): s *= 0.3
+			var base_scale = f_data.max_size * 0.05
+			var s = clampf(base_scale, 0.15, 1.5)
+			if f_data.rarity == "legendary": s = clampf(base_scale, 0.8, 2.5)
 				
 			wrapper.scale = Vector3(s * randf_range(0.85, 1.15), s * randf_range(0.85, 1.15), s * randf_range(0.85, 1.15))
 			_setup_fish_animation(fish_instance, 1.0 + f_data.speed * 0.02)
@@ -876,7 +857,6 @@ func _spawn_decorative_fish() -> void:
 				"think_timer": 0.0
 			})
 
-
 # ==========================================
 # AI CÁ BƠI LƯỢN (BÁM SÁT THUYỀN THEO KHU VỰC)
 # ==========================================
@@ -885,7 +865,6 @@ func _update_decorative_fish(delta: float) -> void:
 		var node: Node3D = fish["node"]
 		if not is_instance_valid(node): continue
 		
-		# 1. TƯ DUY TÌM ĐƯỜNG MỚI
 		fish["think_timer"] -= delta
 		if fish["think_timer"] <= 0.0 or node.global_position.distance_to(fish["target_pos"]) < 1.5:
 			fish["think_timer"] = randf_range(3.0, 7.0)
@@ -897,26 +876,15 @@ func _update_decorative_fish(delta: float) -> void:
 			var new_dir = (forward_dir * 1.5 + random_steer).normalized()
 			fish["target_pos"] = node.global_position + new_dir * randf_range(5.0, 15.0)
 			
-			# === ĐÃ SỬA: ÉP CÁ CHỈ BƠI LOANH QUANH THUYỀN ===
 			var current_boat_x = boat.position.x if boat != null else 0.0
-			
-			# Xích cá lại, không cho bơi cách thuyền quá 45 mét (để luôn nằm trong tầm nhìn)
 			fish["target_pos"].x = clampf(fish["target_pos"].x, current_boat_x - 45.0, current_boat_x + 45.0)
+			fish["target_pos"].y = clampf(fish["target_pos"].y, water_level_y - 25.0, water_level_y - 2.0)
+			fish["target_pos"].z = clampf(fish["target_pos"].z, -15.0, 15.0)
 			
-			# Lặn không vượt quá đáy hoặc nổi lên quá mặt nước (dùng chung cho mọi loại cá)
-			fish["target_pos"].y = clampf(fish["target_pos"].y, water_level_y - 25.0, water_level_y - 4.5)
-			fish["target_pos"].z = clampf(fish["target_pos"].z, -25.0, 25.0)
-			
-		# 2. BẺ LÁI & DI CHUYỂN
 		var desired_velocity = (fish["target_pos"] - node.global_position).normalized() * fish["base_speed"]
 		fish["velocity"] = fish["velocity"].lerp(desired_velocity, delta * 1.2)
 		node.global_position += fish["velocity"] * delta
 		
-		# KHÔNG CHO BAY TRÊN MẶT NƯỚC (Ép sâu hơn phòng ngừa gốc tọa độ model sai)
-		if node.global_position.y >= water_level_y - 3.5:
-			node.global_position.y = water_level_y - 3.5
-		
-		# 3. NGHIÊNG MÌNH ÔM CUA
 		if fish["velocity"].length_squared() > 0.001:
 			var look_target = node.global_position + fish["velocity"]
 			var current_quat = node.quaternion
@@ -978,6 +946,9 @@ func _enter_fishing_mode(spot: Dictionary) -> void:
 
 
 func _on_fishing_ended() -> void:
+	# === ĐÃ SỬA: Tắt cờ trạng thái camera ===
+	_is_fish_fighting = false
+	
 	state = GameState.NAVIGATING
 	camera_mode = CameraMode.BOAT_THIRD_PERSON
 	var overlay = get_node_or_null("FishingOverlay")
@@ -995,6 +966,9 @@ func _on_fishing_ended() -> void:
 
 
 func _on_visual_fish_update(pos_2d: Vector2, fish_data, p_visible: bool, is_fighting: bool) -> void:
+	# === ĐÃ SỬA: Cập nhật cờ trạng thái camera ===
+	_is_fish_fighting = is_fighting
+	
 	if not p_visible or fish_data == null:
 		if active_fish_3d: active_fish_3d.hide()
 		return
@@ -1058,19 +1032,11 @@ func _on_visual_fish_update(pos_2d: Vector2, fish_data, p_visible: bool, is_figh
 		# Nội suy di chuyển mượt mà
 		var follow_speed = 12.0 if is_fighting else 4.0
 		active_fish_3d.global_position = active_fish_3d.global_position.lerp(final_target_pos, follow_speed * get_process_delta_time())
-		if active_fish_3d.global_position.y > water_level_y - 2.0:
-			active_fish_3d.global_position.y = water_level_y - 2.0
 		
 		# Scale kích thước cá
-		var s = fish_data.max_size * 0.03
-		if fish_data.id == "ca_map": s *= 0.015
-		s = clampf(s, 0.08, 0.5) # Giới hạn size
-		
-		var asset_path = fish_id_to_asset.get(fish_data.id, "res://assets/sprites/ca/bream_fish__dorade_royale.glb")
-		if asset_path.contains("jikin_goldfish"): s *= 0.03
-		elif asset_path.contains("model_62a"): s *= 0.012
-		elif asset_path.contains("bream_fish"): s *= 0.3
-		
+		var s = fish_data.max_size * 0.05
+		if fish_data.id == "ca_map": s *= 0.02
+		if fish_data.rarity == "legendary": s = clampf(s, 0.15, 0.4)
 		active_fish_3d.scale = active_fish_3d.scale.lerp(Vector3(s, s, s), 5.0 * get_process_delta_time())
 		
 		# ==========================================
@@ -1140,18 +1106,9 @@ func _on_nearby_visual_update(fish_list: Array) -> void:
 		
 		# Smooth position
 		node.global_position = node.global_position.lerp(target_pos, 5.0 * get_process_delta_time())
-		if node.global_position.y > water_level_y - 2.5:
-			node.global_position.y = water_level_y - 2.5
 		
-		var s = f_data_2d.size * 0.0012
-		if f_id == "ca_map": s *= 0.015
-		s = clampf(s, 0.08, 0.5) # Giới hạn size
-		
-		var asset_path = fish_id_to_asset.get(f_id, "res://assets/sprites/ca/bream_fish__dorade_royale.glb")
-		if asset_path.contains("jikin_goldfish"): s *= 0.03
-		elif asset_path.contains("model_62a"): s *= 0.012
-		elif asset_path.contains("bream_fish"): s *= 0.3
-		
+		var s = f_data_2d.size * 0.0018
+		if f_id == "ca_map": s *= 0.03
 		node.scale = node.scale.lerp(Vector3(s, s, s), 4.0 * get_process_delta_time())
 		
 		# Smooth rotation
@@ -1192,6 +1149,14 @@ func _on_bait_camera_end() -> void:
 
 
 func _x2d_to_3d(x2d: float) -> float:
+	# === ĐÃ SỬA: BÓP LỰC NÉM MỒI KHI CÂU CÁ ===
+	if state == GameState.FISHING and boat != null:
+		var boat_x2d = (boat.position.x + world_width / 2.0) / world_width * 12000.0
+		var dist_2d = x2d - boat_x2d
+		# Ép lực ném về lại chuẩn của map 200.0 cũ để mồi luôn rơi ngay sát mạn tàu
+		return boat.position.x + dist_2d * (200.0 / 12000.0)
+		
+	# Bình thường (tính toán Map, Zone) thì giữ tỷ lệ theo map khổng lồ
 	return (x2d / 12000.0) * world_width - world_width / 2.0
 
 
