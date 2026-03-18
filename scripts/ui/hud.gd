@@ -9,6 +9,8 @@ var zone_name_timer: float = 0.0
 var catch_data = null
 var catch_timer: float = 0.0
 var boat_rotation: float = 0.0 # Current boat Y rotation in radians
+var boat_speed: float = 0.0
+var boat_pos: Vector3 = Vector3.ZERO
 
 
 func _ready() -> void:
@@ -100,6 +102,10 @@ func _draw() -> void:
 	# === BOTTOM: Controls hint ===
 	var controls = "A/D: Di chuyen | E: Cau ca | SPACE: Tha cau | M: Ban do | C: Bo suu tap | T: Cho | U: Nang cap"
 	draw_string(font, Vector2(20, 1060), controls, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(1, 1, 1, 0.35))
+	
+	# === DEBUG (subtle): Boat speed/position ===
+	var spd_text = "SPD: %.1f  POS: (%.1f, %.1f)" % [boat_speed, boat_pos.x, boat_pos.z]
+	draw_string(font, Vector2(20, 1038), spd_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(1, 1, 1, 0.25))
 	
 	# === CENTER: Zone name ===
 	if zone_name_text != "":
