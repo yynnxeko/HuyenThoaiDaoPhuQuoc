@@ -66,6 +66,8 @@ var ocean_mesh: MeshInstance3D = null
 
 # Fishing
 var fishing_spots: Array = []
+var _key_held_t: bool = false
+var _key_held_u: bool = false
 
 # Zone
 var current_zone_info = null
@@ -234,6 +236,16 @@ func _process_navigation(_delta: float) -> void:
 		_open_collection()
 	if Input.is_action_just_pressed("go_to_village") or Input.is_action_just_pressed("return_to_game"):
 		go_to_village.emit()
+	if Input.is_physical_key_pressed(KEY_T) and not _key_held_t:
+		_key_held_t = true
+		_open_market()
+	elif not Input.is_physical_key_pressed(KEY_T):
+		_key_held_t = false
+	if Input.is_physical_key_pressed(KEY_U) and not _key_held_u:
+		_key_held_u = true
+		_open_shop()
+	elif not Input.is_physical_key_pressed(KEY_U):
+		_key_held_u = false
 
 
 func _update_camera(delta: float) -> void:
@@ -920,10 +932,6 @@ func _check_fishing_spot() -> void:
 	for spot in fishing_spots:
 		var dist = Vector2(boat.position.x - spot["x3d"], boat.position.z).length()
 		if dist < 3.0:
-			if not GameData.is_zone_unlocked(spot["zone"]):
-				if hud and hud.has_method("show_message"):
-					hud.show_message("Can nang cap thuyen de den khu vuc nay!")
-				return
 			_enter_fishing_mode(spot)
 			return
 	if hud and hud.has_method("show_message"):
