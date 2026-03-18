@@ -1,0 +1,11 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://8pet3ep3resk"]
+
+[ext_resource type="Texture2D" uid="uid://lrac5t4de0ol" path="res://assets/sprites/cat/fine_sand_material_0.png" id="1_2h5v2"]
+[ext_resource type="Texture2D" uid="uid://dll1hnq2r5xuc" path="res://assets/sprites/cat/fine_sand_material_1.png" id="2_k34nv"]
+[ext_resource type="Texture2D" uid="uid://cn3xvx5geohuw" path="res://assets/sprites/cat/fine_sand_material_2.png" id="3_b2vka"]
+
+[resource]
+albedo_texture = ExtResource("1_2h5v2")
+roughness_texture = ExtResource("2_k34nv")
+normal_enabled = true
+normal_texture = ExtResource("3_b2vka")

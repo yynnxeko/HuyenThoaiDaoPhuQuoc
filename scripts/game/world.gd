@@ -64,6 +64,9 @@ var ocean_mesh: MeshInstance3D = null
 
 # Fishing
 var fishing_spots: Array = []
+var _key_held_t: bool = false
+var _key_held_u: bool = false
+var _is_fish_fighting: bool = false
 
 # Zone
 var current_zone_info = null
@@ -201,11 +204,34 @@ func _process_navigation(_delta: float) -> void:
 		throttle_input -= 1.0
 	
 	if boat:
-		boat.steer_input = steer_input
-		boat.throttle_input = throttle_input
-		# Keep boat inside gameplay area.
-		boat.position.x = clampf(boat.position.x, -world_width / 2.0, world_width / 2.0)
-		boat.position.z = clampf(boat.position.z, -7.0, 7.0)
+		# Vẫn truyền tín hiệu cho tàu (phòng hờ script tàu cần dùng cho hiệu ứng chân vịt/âm thanh)
+		if "steer_input" in boat: boat.steer_input = steer_input
+		if "throttle_input" in boat: boat.throttle_input = throttle_input
+		
+		# ========================================================
+		# ĐỘNG CƠ DỰ PHÒNG: ÉP THUYỀN CHẠY TRỰC TIẾP TỪ WORLD.GD
+		# ========================================================
+		var turn_speed = 0.5  # Tốc độ quay vô lăng (chỉnh to lên nếu muốn cua gắt)
+		var move_speed = 3.5 # Tốc độ chạy tới/lui (chỉnh to lên nếu muốn chạy nhanh)
+		
+		# 1. Ép thuyền quay trái/phải
+		if steer_input != 0.0:
+			boat.rotate_y(-steer_input * turn_speed * _delta)
+			
+		# 2. Ép thuyền lướt tới/lui
+		if throttle_input != 0.0:
+			# Dựa theo cấu trúc code camera của bạn, mũi thuyền đang hướng về trục X
+			var forward_dir = boat.global_basis.x.normalized()
+			boat.global_position += forward_dir * throttle_input * move_speed * _delta
+		
+		# ========================================================
+		
+		# Giới hạn không cho tàu chạy ra khỏi mép bản đồ
+		var half_w = world_width / 2.0
+		var half_d = world_depth / 2.0
+		if boat.position.x < -half_w or boat.position.x > half_w or boat.position.z < -half_d or boat.position.z > half_d:
+			boat.position.x = clampf(boat.position.x, -half_w, half_w)
+			boat.position.z = clampf(boat.position.z, -half_d, half_d)
 	
 	# Interact
 	if Input.is_action_just_pressed("interact"):
@@ -239,31 +265,24 @@ func _unhandled_key_input(event: InputEvent) -> void:
 func _update_camera(delta: float) -> void:
 	if camera and boat:
 		if camera_mode == CameraMode.BAIT_FOLLOW:
-			var bait_x3d = _x2d_to_3d(bait_x2d)
+			# Lấy tọa độ mồi ban đầu (đang bị lỗi ném quá xa)
+			var raw_bait_x3d = _x2d_to_3d(bait_x2d)
+			
+			# === ĐÃ SỬA: KÉO MỒI CÂU LẠI GẦN SÁT MẠN THUYỀN ===
+			# Tính xem mồi đang bị văng ra cách thuyền bao xa
+			var dist_from_boat = raw_bait_x3d - boat.position.x
+			# Bóp nhỏ khoảng cách ném lại và giới hạn TỐI ĐA chỉ được ném xa 8 mét
+			var safe_dist = clampf(dist_from_boat * 0.3, -8.0, 8.0) 
+			var bait_x3d = boat.position.x + safe_dist
+			# ===================================================
+			
 			var depth_y = lerpf(water_level_y, water_level_y - bait_max_depth_3d, bait_depth_ratio)
 			var target = Vector3(bait_x3d, depth_y, boat.position.z)
+			var cam_height = lerpf(bait_camera_above, bait_camera_below, bait_depth_ratio)
 			
-			# === ĐÃ SỬA: GÓC NHÌN MỒI DỨT KHOÁT ===
-			var desired_pos = Vector3.ZERO
+			var desired_pos = target + Vector3(0, cam_height, bait_camera_z_offset)
 			
-			if bait_depth_ratio < 0.05:
-				# Mồi vừa chạm nước chưa chìm -> Camera đứng trên cao nhìn rõ phao
-				desired_pos = target + Vector3(0, 4.0, 5.5)
-			else:
-				# Mồi bắt đầu chìm -> Camera LẶN HẲN xuống dưới nước
-				desired_pos = target + Vector3(0, 1.0, 4.0)
-				# Ép Y của camera luôn phải chìm sâu hơn mặt nước ít nhất 0.5 đơn vị
-				desired_pos.y = min(desired_pos.y, water_level_y - 0.5)
-			
-			# === XỬ LÝ LỖI "NỬA CHÌM NỬA NỔI" ===
-			var dynamic_speed = camera_follow_speed
-			var is_crossing_surface = (camera.position.y > water_level_y and desired_pos.y < water_level_y) or (camera.position.y < water_level_y and desired_pos.y > water_level_y)
-			
-			# Nếu đang trong quá trình lặn qua mặt nước, hoặc đang kẹt ở ranh giới
-			if is_crossing_surface or abs(camera.position.y - water_level_y) < 1.0:
-				dynamic_speed *= 4.0 # Lặn cái "vèo" xuống, không lề mề ở giữa mặt nước
-				
-			camera.position = camera.position.lerp(desired_pos, dynamic_speed * delta)
+			camera.position = camera.position.lerp(desired_pos, camera_follow_speed * delta)
 			camera.look_at(target, Vector3.UP)
 			camera.fov = lerpf(camera.fov, bait_camera_fov, 6.0 * delta)
 			
@@ -273,14 +292,14 @@ func _update_camera(delta: float) -> void:
 			camera.position = camera.position.lerp(desired_pos, camera_follow_speed * delta)
 			camera.look_at(target, Vector3.FORWARD)
 			camera.fov = lerpf(camera.fov, top_down_fov, 6.0 * delta)
+			
 		else:
-			# Chase camera: behind and above boat, looking toward bow.
+			# Chase camera: GÓC NHÌN LÁI TÀU
 			var forward = boat.global_basis.x.normalized()
 			var desired_pos = boat.position - forward * 8.0 + Vector3(0, 3.5, 0)
 			camera.position = camera.position.lerp(desired_pos, camera_follow_speed * delta)
 			camera.look_at(boat.position + forward * 3.0, Vector3.UP)
 			camera.fov = lerpf(camera.fov, default_camera_fov, 6.0 * delta)
-
 
 func _update_lighting(_delta: float) -> void:
 	if sun_light == null:
@@ -310,6 +329,25 @@ func _update_lighting(_delta: float) -> void:
 		"night":
 			sun_light.light_color = Color(0.3, 0.35, 0.6)
 			sun_light.light_energy = 0.2
+
+	# Make night actually dark even with HDRI sky:
+	# - Force ambient from COLOR (not SKY), so we can control it.
+	# - Reduce background energy at night to avoid "washed-out" bright scenes.
+	if env and env.environment:
+		var e := env.environment
+		e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		
+		# Start darkening from 18:00, finish by 20:00.
+		var h := fposmod(TimeWeather.game_hour, 24.0)
+		var t := clampf((h - 18.0) / 2.0, 0.0, 1.0) # 0 at 18:00, 1 at 20:00
+		if period == "night":
+			t = 1.0
+		
+		var day_col := Color(0.95, 0.98, 1.0)
+		var night_col := Color(0.12, 0.16, 0.25)
+		e.ambient_light_color = day_col.lerp(night_col, t)
+		e.ambient_light_energy = lerpf(1.0, 0.18, t)
+		e.background_energy_multiplier = lerpf(1.0, 0.25, t)
 	
 	# Update Sky colors from TimeWeather
 	if env and env.environment and env.environment.sky:
@@ -777,17 +815,14 @@ func _update_bubbles(delta: float) -> void:
 # SPAWN CÁ THEO KHU VỰC VÀ BÁM SÁT THUYỀN
 # ==========================================
 func _spawn_decorative_fish() -> void:
-	# 1. DỌN SẠCH CÁ CŨ ĐỂ GIẢI PHÓNG RAM
 	for fish in fish_nodes:
 		if is_instance_valid(fish["node"]):
 			fish["node"].queue_free()
 	fish_nodes.clear()
 	
-	# Lấy vị trí hiện tại của thuyền để làm tâm sinh cá
 	var boat_x = 0.0
 	if boat != null: boat_x = boat.position.x
 
-	# 2. LỌC DANH SÁCH CÁ THEO KHU VỰC HIỆN TẠI (ZONE)
 	var zone_id = "coastal"
 	if current_zone_info != null:
 		zone_id = current_zone_info.id
@@ -795,29 +830,23 @@ func _spawn_decorative_fish() -> void:
 	var all_fish_types = FishDatabase.get_all_fish()
 	var zone_fish = []
 	for f in all_fish_types:
-		# ĐÃ SỬA: Lấy trực tiếp thuộc tính "zones" của Object FishType
 		if zone_id in f.zones: 
 			zone_fish.append(f)
 			
-	# Nếu database lỗi chưa có con nào, lấy tạm tất cả để game không bị trống
 	if zone_fish.is_empty(): zone_fish = all_fish_types
 
-	# Số lượng đàn cá (Biển sâu/Vực thẳm thì tối tăm và ít cá hơn)
 	var school_count = 6
 	if zone_id in ["deep_sea", "abyss"]: school_count = 3 
 
-	# 3. TIẾN HÀNH ĐẺ CÁ MỚI XUNG QUANH THUYỀN
 	for b in range(school_count):
 		var f_data = zone_fish.pick_random()
 		var asset_path = fish_id_to_asset.get(f_data.id, "res://assets/sprites/ca/guppy_fish.glb")
 		var fish_scene = load(asset_path)
 		if not fish_scene: continue
 		
-		# Vị trí đàn cá: Random XUNG QUANH CHIẾC THUYỀN (bán kính 35m) thay vì toàn bản đồ
 		var spawn_x = boat_x + randf_range(-35.0, 35.0)
 		var spawn_y = water_level_y - randf_range(2.0, 10.0)
 		
-		# Map càng sâu, cá càng lặn sâu (Đồng bộ với UI của bạn)
 		if zone_id == "coral_reef": spawn_y = water_level_y - randf_range(5.0, 15.0)
 		elif zone_id == "open_sea": spawn_y = water_level_y - randf_range(8.0, 18.0)
 		elif zone_id in ["deep_sea", "abyss"]: spawn_y = water_level_y - randf_range(15.0, 25.0)
@@ -852,7 +881,6 @@ func _spawn_decorative_fish() -> void:
 				"think_timer": 0.0
 			})
 
-
 # ==========================================
 # AI CÁ BƠI LƯỢN (BÁM SÁT THUYỀN THEO KHU VỰC)
 # ==========================================
@@ -861,7 +889,6 @@ func _update_decorative_fish(delta: float) -> void:
 		var node: Node3D = fish["node"]
 		if not is_instance_valid(node): continue
 		
-		# 1. TƯ DUY TÌM ĐƯỜNG MỚI
 		fish["think_timer"] -= delta
 		if fish["think_timer"] <= 0.0 or node.global_position.distance_to(fish["target_pos"]) < 1.5:
 			fish["think_timer"] = randf_range(3.0, 7.0)
@@ -873,22 +900,15 @@ func _update_decorative_fish(delta: float) -> void:
 			var new_dir = (forward_dir * 1.5 + random_steer).normalized()
 			fish["target_pos"] = node.global_position + new_dir * randf_range(5.0, 15.0)
 			
-			# === ĐÃ SỬA: ÉP CÁ CHỈ BƠI LOANH QUANH THUYỀN ===
 			var current_boat_x = boat.position.x if boat != null else 0.0
-			
-			# Xích cá lại, không cho bơi cách thuyền quá 45 mét (để luôn nằm trong tầm nhìn)
 			fish["target_pos"].x = clampf(fish["target_pos"].x, current_boat_x - 45.0, current_boat_x + 45.0)
-			
-			# Lặn không vượt quá đáy hoặc nổi lên quá mặt nước (dùng chung cho mọi loại cá)
 			fish["target_pos"].y = clampf(fish["target_pos"].y, water_level_y - 25.0, water_level_y - 2.0)
 			fish["target_pos"].z = clampf(fish["target_pos"].z, -15.0, 15.0)
 			
-		# 2. BẺ LÁI & DI CHUYỂN
 		var desired_velocity = (fish["target_pos"] - node.global_position).normalized() * fish["base_speed"]
 		fish["velocity"] = fish["velocity"].lerp(desired_velocity, delta * 1.2)
 		node.global_position += fish["velocity"] * delta
 		
-		# 3. NGHIÊNG MÌNH ÔM CUA
 		if fish["velocity"].length_squared() > 0.001:
 			var look_target = node.global_position + fish["velocity"]
 			var current_quat = node.quaternion
@@ -954,6 +974,9 @@ func _enter_fishing_mode(spot: Dictionary) -> void:
 
 
 func _on_fishing_ended() -> void:
+	# === ĐÃ SỬA: Tắt cờ trạng thái camera ===
+	_is_fish_fighting = false
+	
 	state = GameState.NAVIGATING
 	camera_mode = CameraMode.BOAT_THIRD_PERSON
 	var overlay = get_node_or_null("FishingOverlay")
@@ -971,6 +994,9 @@ func _on_fishing_ended() -> void:
 
 
 func _on_visual_fish_update(pos_2d: Vector2, fish_data, p_visible: bool, is_fighting: bool) -> void:
+	# === ĐÃ SỬA: Cập nhật cờ trạng thái camera ===
+	_is_fish_fighting = is_fighting
+	
 	if not p_visible or fish_data == null:
 		if active_fish_3d: active_fish_3d.hide()
 		return
@@ -1151,6 +1177,14 @@ func _on_bait_camera_end() -> void:
 
 
 func _x2d_to_3d(x2d: float) -> float:
+	# === ĐÃ SỬA: BÓP LỰC NÉM MỒI KHI CÂU CÁ ===
+	if state == GameState.FISHING and boat != null:
+		var boat_x2d = (boat.position.x + world_width / 2.0) / world_width * 12000.0
+		var dist_2d = x2d - boat_x2d
+		# Ép lực ném về lại chuẩn của map 200.0 cũ để mồi luôn rơi ngay sát mạn tàu
+		return boat.position.x + dist_2d * (200.0 / 12000.0)
+		
+	# Bình thường (tính toán Map, Zone) thì giữ tỷ lệ theo map khổng lồ
 	return (x2d / 12000.0) * world_width - world_width / 2.0
 
 

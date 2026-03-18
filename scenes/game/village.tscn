@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://c2ndq2eo75f2t" path="res://scripts/game/village.gd" id="1_v"]
 [ext_resource type="PackedScene" uid="uid://bwat1qs1fxtlg" path="res://assets/sprites/village/Cloud.glb" id="2_cloud"]
+[ext_resource type="Texture2D" uid="uid://bay3ak8k8pevv" path="res://assets/sprites/sky/kloppenheim_06_puresky_4k.exr" id="3_sky_texture"]
 [ext_resource type="PackedScene" uid="uid://c6hoy8r6ia35d" path="res://assets/sprites/village/nha1.glb" id="3_nha1"]
 [ext_resource type="PackedScene" uid="uid://r88fj2dq7p6q" path="res://assets/sprites/village/nha2.glb" id="4_nha2"]
 [ext_resource type="PackedScene" uid="uid://chnrl2gwcovs" path="res://assets/sprites/village/quayThit.glb" id="5_stall"]
@@ -26,6 +27,12 @@
 [ext_resource type="PackedScene" uid="uid://brefqpsdn8xcf" path="res://assets/sprites/village/nhavanhoa_old.glb" id="18_nhavanhoa_old"]
 [ext_resource type="PackedScene" path="res://scenes/ui/dialogue_box.tscn" id="19_dialogue"]
 [ext_resource type="Script" uid="uid://cn44pmodbukwl" path="res://scripts/game/npc_interaction.gd" id="20_npc"]
+
+[ext_resource type="Texture2D" uid="uid://lrac5t4de0ol" path="res://assets/sprites/cat/fine_sand_material_0.png" id="21_sand_albedo"]
+[ext_resource type="Texture2D" uid="uid://dll1hnq2r5xuc" path="res://assets/sprites/cat/fine_sand_material_1.png" id="22_sand_roughness"]
+[ext_resource type="Texture2D" uid="uid://cn3xvx5geohuw" path="res://assets/sprites/cat/fine_sand_material_2.png" id="23_sand_normal"]
+[ext_resource type="Shader" uid="uid://ukgimt7je4i5" path="res://shaders/sand_shore_dunes.gdshader" id="24_sand_shader"]
+[ext_resource type="Script" path="res://scripts/game/sky_day_night.gd" id="25_sky_switcher"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMat_v"]
 sky_top_color = Color(0.2, 0.5, 0.8, 1)
@@ -91,13 +98,42 @@ emission_energy_multiplier = 4.0
 size = Vector3(5, 0.1, 5)
 
 [sub_resource type="BoxShape3D" id="TerminalShape"]
-size = Vector3(5, 2, 5)
+size = Vector3(8, 3, 8)
 
-[sub_resource type="StandardMaterial3D" id="SandMat"]
-albedo_color = Color(0.760784, 0.698039, 0.501961, 1)
+[sub_resource type="ShaderMaterial" id="SandDunesMat"]
+render_priority = 0
+shader = ExtResource("21_sand_shader")
+shader_parameter/albedo_tex = ExtResource("18_sand_albedo")
+shader_parameter/normal_tex = ExtResource("20_sand_normal")
+shader_parameter/roughness_tex = ExtResource("19_sand_roughness")
+shader_parameter/uv_scale = 12.0
+shader_parameter/dune_amplitude = 0.22
+shader_parameter/dune_frequency = 0.06
+shader_parameter/dune_speed = 0.06
+shader_parameter/ridge_noise = 0.55
+shader_parameter/beach_flat_width = 6.0
+shader_parameter/shoreline_z = -80.0
+shader_parameter/shore_width = 7.0
+shader_parameter/foam_width = 1.2
+shader_parameter/foam_intensity = 0.9
+shader_parameter/foam_speed = 0.25
+shader_parameter/wet_darkening = 0.22
+shader_parameter/wet_roughness_drop = 0.45
+shader_parameter/wet_specular_boost = 0.45
+shader_parameter/beach_slope = 0.02
+shader_parameter/runup_amplitude = 0.9
+shader_parameter/runup_frequency = 0.05
+shader_parameter/runup_speed = 0.35
+shader_parameter/runup_noise_amplitude = 0.4
+shader_parameter/color_variation = 0.06
+shader_parameter/variation_frequency = 0.12
+shader_parameter/roughness_strength = 1.0
+shader_parameter/normal_strength = 1.15
 
 [sub_resource type="PlaneMesh" id="SandMesh"]
 size = Vector2(100, 20)
+subdivide_width = 120
+subdivide_depth = 24
 
 [sub_resource type="BoxShape3D" id="SandShape"]
 size = Vector3(100, 1, 20)
@@ -132,6 +168,9 @@ script = ExtResource("1_v")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1230044613]
 environment = SubResource("Env_v")
+script = ExtResource("22_sky_switcher")
+sun_light_path = NodePath("../SunLight")
+switch_sky = true
 
 [node name="SunLight" type="DirectionalLight3D" parent="." unique_id=288309497]
 transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 10, 0)
@@ -291,15 +330,6 @@ transform = Transform3D(2.5, 0, 0, 0, 2.5, 0, 0, 0, 2.5, 9.6850605, 0, -2.458923
 [node name="Rau3" parent="VegetableGarden" unique_id=3333334 instance=ExtResource("17_rau3")]
 transform = Transform3D(2.5, 0, 0, 0, 2.5, 0, 0, 0, 2.5, 10, 0, 0)
 
-[node name="Clouds" type="Node3D" parent="." unique_id=977298122]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 80, 0)
-
-[node name="Cloud1" parent="Clouds" unique_id=1058977365 instance=ExtResource("2_cloud")]
-transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 40, 0, 60)
-
-[node name="Cloud2" parent="Clouds" unique_id=1140440855 instance=ExtResource("2_cloud")]
-transform = Transform3D(-10, 0, 8.74228e-07, 0, 10, 0, -8.74228e-07, 0, -10, -80, 20, -40)
-
 [node name="Ground" type="StaticBody3D" parent="." unique_id=757101834]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 20)
 
@@ -329,13 +359,15 @@ material_override = SubResource("TerminalMat")
 mesh = SubResource("TerminalMesh")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="FerryTerminal" unique_id=721741137]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15.092492, 0, -8.721512)
 shape = SubResource("TerminalShape")
 
 [node name="Sand" type="StaticBody3D" parent="." unique_id=1241565030]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -70)
+transform = Transform3D(1, 0, 0, 0, 0.9998477, 0.017452406, 0, -0.017452406, 0.9998477, -0.09898591, -0.45330185, -69.96036)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Sand" unique_id=1265361068]
-material_override = SubResource("SandMat")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.07758522, 0, -0.05430603)
+material_override = SubResource("SandDunesMat")
 mesh = SubResource("SandMesh")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Sand" unique_id=619022762]
