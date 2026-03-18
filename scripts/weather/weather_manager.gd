@@ -2,6 +2,8 @@ extends Node
 
 class_name WeatherManager
 
+const OceanController = preload("res://scripts/game/ocean.gd")
+
 @export var ocean: Node
 @export var world_env: WorldEnvironment
 @export var sun: DirectionalLight3D

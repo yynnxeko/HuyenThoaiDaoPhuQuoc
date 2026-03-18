@@ -12,7 +12,8 @@ enum CameraMode { BOAT_THIRD_PERSON, TOP_DOWN_FISHING, BAIT_FOLLOW }
 var camera_mode: CameraMode = CameraMode.BOAT_THIRD_PERSON
 
 # World
-var world_width: float = 200.0  # 3D units
+var world_width: float = 500.0  # 3D units
+var world_depth: float = 100.0  # 3D units (Z range)
 var camera_follow_speed: float = 3.0
 var top_down_height: float = 16.0
 var top_down_offset: Vector3 = Vector3(0, 0, 0)
@@ -45,7 +46,8 @@ var last_chunk_index: int = -999
 
 # Underwater assets (optional)
 var underwater_prop_catalog = [
-	{"type": "coral", "path": "res://assets/coral.glb"},
+	# ĐÃ SỬA: Thêm "sprites/sanho/" vào đường dẫn
+	{"type": "coral", "path": "res://assets/sprites/sanho/coral.glb"}, 
 	{"type": "rock", "path": "res://assets/sprites/rock/river_rock.glb"},
 	{"type": "seaweed", "path": "res://assets/sprites/seaweed/sea_weed.glb"},
 	{"type": "coral_main", "path": "res://assets/sprites/sanho/coral.glb"},
@@ -64,6 +66,8 @@ var ocean_mesh: MeshInstance3D = null
 
 # Fishing
 var fishing_spots: Array = []
+var _key_held_t: bool = false
+var _key_held_u: bool = false
 
 # Zone
 var current_zone_info = null
@@ -104,16 +108,26 @@ var stars_mesh: Node3D = null
 
 
 func _ready() -> void:
-	# Get references
-	boat = $Boat3D
-	camera = $Camera3D
-	ocean_mesh = $OceanMesh
+	# BƯỚC SỬA LỖI: Get references một cách an toàn tuyệt đối
+	boat = get_node_or_null("Boat3D")
+	camera = get_node_or_null("Camera3D")
+	ocean_mesh = get_node_or_null("OceanMesh") 
+	ocean = ocean_mesh # Đỡ phải tìm 2 lần
+	
 	if camera:
+		camera.current = true
+		if camera.get_script():
+			camera.set_process(false)
+			camera.set_physics_process(false)
+			camera.set_process_input(false)
+			camera.set_process_unhandled_input(false)
 		default_camera_fov = camera.fov
-	hud_canvas = $HUD
-	hud = $HUD/HUDControl
-	sun_light = $DirectionalLight3D
-	env = $WorldEnvironment
+			
+	hud_canvas = get_node_or_null("HUD")
+	hud = get_node_or_null("HUD/HUDControl")
+	sun_light = get_node_or_null("DirectionalLight3D")
+	env = get_node_or_null("WorldEnvironment")
+	
 	_sync_water_level()
 
 	# Initialize seabed noise
@@ -124,7 +138,6 @@ func _ready() -> void:
 
 	# Underwater layers
 	_setup_underwater_layers()
-	ocean = $OceanMesh
 	
 	if ocean and camera:
 		if ocean.has_method("set"): 
@@ -139,7 +152,8 @@ func _ready() -> void:
 	_spawn_decorative_fish()
 	
 	# Initial zone
-	current_zone_info = ZoneDatabase.get_zone_at_position(boat.position.x * 60.0)
+	if boat:
+		current_zone_info = ZoneDatabase.get_zone_at_position(boat.position.x * 60.0)
 	
 	# Keyboard shortcut hints on HUD
 	if hud and hud.has_method("show_message"):
@@ -150,92 +164,88 @@ func _process(delta: float) -> void:
 	if state == GameState.NAVIGATING:
 		_process_navigation(delta)
 	
-	# Update camera to follow boat
-	_update_camera(delta)
-	
-	# THÊM VÀO ĐÂY:
+	# Cập nhật sóng (thuyền dập dìu) trước tiên
 	_update_boat_waves(delta)
 	
-	# Update day/night cycle on sun
+	# Cập nhật góc nhìn và ánh sáng
+	_update_camera(delta)
 	_update_lighting(delta)
 	
-	# Update HUD boat rotation for compass
+	# Cập nhật La bàn trên UI
 	if hud and boat:
 		hud.boat_rotation = boat.rotation.y
 	
-	# Update camera to follow boat
-	_update_camera(delta)
-	
-	# Update day/night cycle on sun
-	_update_lighting(delta)
-	
-	# Update decorative fish
+	# Các hiệu ứng môi trường
 	_update_decorative_fish(delta)
 	_update_seaweed(delta)
 	_update_bubbles(delta)
 	_sync_water_level()
-	
-	# Update sương mù (Fog) dưới nước
 	_update_underwater_effects(delta)
 	
-	# Zone check
+	# Xử lý Map và tải khu vực
 	_check_zone()
-	
-	# Cập nhật chunk dựa trên vị trí tàu
 	_update_dynamic_chunks()
 
-
 func _process_navigation(_delta: float) -> void:
-	# Boat steering input
 	var steer_input = 0.0
-	if Input.is_action_pressed("move_right"):
-		steer_input = 1.0
-	elif Input.is_action_pressed("move_left"):
-		steer_input = -1.0
+	if Input.is_action_pressed("move_right"): steer_input = 1.0
+	elif Input.is_action_pressed("move_left"): steer_input = -1.0
 
-	# Boat throttle input (W/S or Up/Down)
 	var throttle_input = 0.0
-	if Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP):
-		throttle_input += 1.0
-	if Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN):
-		throttle_input -= 1.0
+	if Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP): throttle_input += 1.0
+	if Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN): throttle_input -= 1.0
 	
 	if boat:
-		boat.steer_input = steer_input
-		boat.throttle_input = throttle_input
-		# Keep boat inside gameplay area.
-		boat.position.x = clampf(boat.position.x, -world_width / 2.0, world_width / 2.0)
-		boat.position.z = clampf(boat.position.z, -7.0, 7.0)
+		# Vẫn truyền tín hiệu cho tàu (phòng hờ script tàu cần dùng cho hiệu ứng chân vịt/âm thanh)
+		if "steer_input" in boat: boat.steer_input = steer_input
+		if "throttle_input" in boat: boat.throttle_input = throttle_input
+		
+		# ========================================================
+		# ĐỘNG CƠ DỰ PHÒNG: ÉP THUYỀN CHẠY TRỰC TIẾP TỪ WORLD.GD
+		# ========================================================
+		var turn_speed = 0.5  # Tốc độ quay vô lăng (chỉnh to lên nếu muốn cua gắt)
+		var move_speed = 7.0 # Tốc độ chạy tới/lui (chỉnh to lên nếu muốn chạy nhanh)
+		
+		# 1. Ép thuyền quay trái/phải
+		if steer_input != 0.0:
+			boat.rotate_y(-steer_input * turn_speed * _delta)
+			
+		# 2. Ép thuyền lướt tới/lui
+		if throttle_input != 0.0:
+			# Dựa theo cấu trúc code camera của bạn, mũi thuyền đang hướng về trục X
+			var forward_dir = boat.global_basis.x.normalized()
+			boat.global_position += forward_dir * throttle_input * move_speed * _delta
+		
+		# ========================================================
+		
+		# Giới hạn không cho tàu chạy ra khỏi mép bản đồ
+		var half_w = world_width / 2.0
+		var half_d = world_depth / 2.0
+		if boat.position.x < -half_w or boat.position.x > half_w or boat.position.z < -half_d or boat.position.z > half_d:
+			boat.position.x = clampf(boat.position.x, -half_w, half_w)
+			boat.position.z = clampf(boat.position.z, -half_d, half_d)
 	
 	# Interact
 	if Input.is_action_just_pressed("interact"):
 		_check_fishing_spot()
-	
-	# Return to menu
 	if Input.is_action_just_pressed("pause"):
 		return_to_menu.emit()
-	
-	# Map
 	if Input.is_action_just_pressed("open_map"):
 		_open_map()
-	
-	# Collection
 	if Input.is_action_just_pressed("open_collection"):
 		_open_collection()
-	
-	# Go to Village (Key V hoặc B)
 	if Input.is_action_just_pressed("go_to_village") or Input.is_action_just_pressed("return_to_game"):
 		go_to_village.emit()
-
-
-func _unhandled_key_input(event: InputEvent) -> void:
-	if state != GameState.NAVIGATING:
-		return
-	if event is InputEventKey and event.pressed:
-		if event.keycode == KEY_T:
-			_open_market()
-		elif event.keycode == KEY_U:
-			_open_shop()
+	if Input.is_physical_key_pressed(KEY_T) and not _key_held_t:
+		_key_held_t = true
+		_open_market()
+	elif not Input.is_physical_key_pressed(KEY_T):
+		_key_held_t = false
+	if Input.is_physical_key_pressed(KEY_U) and not _key_held_u:
+		_key_held_u = true
+		_open_shop()
+	elif not Input.is_physical_key_pressed(KEY_U):
+		_key_held_u = false
 
 
 func _update_camera(delta: float) -> void:
@@ -321,18 +331,19 @@ func _update_lighting(_delta: float) -> void:
 			sky_mat.sky_horizon_color = TimeWeather.get_sky_bottom_color()
 	
 	# Update Ocean Shader with lighting
-	if boat and boat.ocean_manager:
-		var ocean_mesh = boat.ocean_manager.get_child(0) as MeshInstance3D
-		if ocean_mesh and ocean_mesh.material_override:
-			var mat = ocean_mesh.material_override as ShaderMaterial
-			if mat:
-				mat.set_shader_parameter("sun_color", sun_light.light_color)
-				# Calculate factor based on sun elevation
-				var sun_factor = clamp(1.0 - TimeWeather.get_sun_position_normalized(), 0.0, 1.0)
-				# Push factor higher during sunset/dawn
-				if period == "evening" or period == "dawn":
-					sun_factor = max(sun_factor, 0.6)
-				mat.set_shader_parameter("sun_factor", sun_factor)
+	var target_ocean_mesh: MeshInstance3D = ocean_mesh
+	if target_ocean_mesh == null and ocean is MeshInstance3D:
+		target_ocean_mesh = ocean as MeshInstance3D
+	if target_ocean_mesh and target_ocean_mesh.material_override:
+		var mat = target_ocean_mesh.material_override as ShaderMaterial
+		if mat:
+			mat.set_shader_parameter("sun_color", sun_light.light_color)
+			# Calculate factor based on sun elevation
+			var sun_factor = clamp(1.0 - TimeWeather.get_sun_position_normalized(), 0.0, 1.0)
+			# Push factor higher during sunset/dawn
+			if period == "evening" or period == "dawn":
+				sun_factor = max(sun_factor, 0.6)
+			mat.set_shader_parameter("sun_factor", sun_factor)
 	
 	# Update Moon and Stars visibility
 	if moon_mesh:
@@ -667,24 +678,31 @@ func _get_zone_profile() -> Dictionary:
 func _pick_underwater_prop(weights: Dictionary) -> Dictionary:
 	var available: Array = []
 	for item in underwater_prop_catalog:
-		var scene = load(item["path"])
-		if scene:
+		# ĐIỂM SỬA: Kiểm tra file có tồn tại thật ngoài đời không trước khi load
+		if ResourceLoader.exists(item["path"]):
+			var scene = load(item["path"])
 			available.append({"type": item["type"], "scene": scene})
 		else:
-			available.append({"type": item["type"], "scene": null})
+			# Nếu mất file thì dùng đồ giả (fallback) thay vì báo lỗi đỏ
+			available.append({"type": item["type"], "scene": null}) 
+			
 	if available.is_empty():
 		return {}
+		
 	var total_weight := 0.0
 	for item in available:
 		total_weight += float(weights.get(item.type, 0.0))
+		
 	if total_weight <= 0.0:
 		return available.pick_random()
+		
 	var roll = randf() * total_weight
 	var acc = 0.0
 	for item in available:
 		acc += float(weights.get(item.type, 0.0))
 		if roll <= acc:
 			return item
+			
 	return available[0]
 
 
@@ -914,10 +932,6 @@ func _check_fishing_spot() -> void:
 	for spot in fishing_spots:
 		var dist = Vector2(boat.position.x - spot["x3d"], boat.position.z).length()
 		if dist < 3.0:
-			if not GameData.is_zone_unlocked(spot["zone"]):
-				if hud and hud.has_method("show_message"):
-					hud.show_message("Can nang cap thuyen de den khu vuc nay!")
-				return
 			_enter_fishing_mode(spot)
 			return
 	if hud and hud.has_method("show_message"):
@@ -1248,6 +1262,11 @@ func _on_zone_selected(zone_id: String) -> void:
 		var x_3d = (zone_center_2d / 12000.0) * world_width - world_width / 2.0
 		boat.position.x = x_3d
 		current_zone_info = zone
+		
+		# ĐÃ SỬA: Ép Camera dịch chuyển tức thì theo tàu, chống lỗi "mất tàu"
+		if camera:
+			var forward = boat.global_basis.x.normalized()
+			camera.position = boat.position - forward * 8.0 + Vector3(0, 3.5, 0)
 
 
 func _setup_node_animation(node: Node, anim_speed: float = 1.0) -> void:
