@@ -39,11 +39,29 @@ glow_enabled = true
 glow_intensity = 0.8
 glow_bloom = 0.2
 
-[sub_resource type="BoxShape3D" id="NhaShape"]
+[sub_resource type="BoxShape3D" id="NhaShape1"]
 size = Vector3(9.258733, 6.8434277, 7.9064693)
 
-[sub_resource type="BoxShape3D" id="QuayShape"]
-size = Vector3(2.4631844, 5, 1.0122299)
+[sub_resource type="BoxShape3D" id="NhaShape2"]
+size = Vector3(9.258733, 6.8434277, 7.9064693)
+
+[sub_resource type="BoxShape3D" id="QuayShape1"]
+size = Vector3(4.5749025, 5, 2.3550472)
+
+[sub_resource type="BoxShape3D" id="QuayShape2"]
+size = Vector3(8.575025, 4.293457, 2.231207)
+
+[sub_resource type="BoxShape3D" id="QuayShape3"]
+size = Vector3(4.3906984, 5, 1.4903679)
+
+[sub_resource type="BoxShape3D" id="NhaShape3"]
+size = Vector3(9.258733, 6.8434277, 7.9064693)
+
+[sub_resource type="BoxShape3D" id="NhaShape4"]
+size = Vector3(9.258733, 6.8434277, 7.9064693)
+
+[sub_resource type="BoxShape3D" id="NhaShape5"]
+size = Vector3(9.258733, 6.8434277, 14.624811)
 
 [sub_resource type="StandardMaterial3D" id="GroundMat"]
 albedo_color = Color(0.2, 0.4, 0.2, 1)
@@ -126,7 +144,7 @@ transform = Transform3D(17, 0, 0, 0, 17, 0, 0, 0, 17, 5.4759827, 0, 10.153288)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Nha1_Body" unique_id=1118896593]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.4385567, 4.078286, 10.838982)
-shape = SubResource("NhaShape")
+shape = SubResource("NhaShape1")
 
 [node name="Nha2_Body" type="StaticBody3D" parent="Architecture" unique_id=1124060606]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 35, 0, -30)
@@ -136,7 +154,7 @@ transform = Transform3D(16, 0, 0, 0, 16, 0, 0, 0, 16, 0, 0, 10.186314)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Nha2_Body" unique_id=680176006]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.21512222, 3.75, 10.328514)
-shape = SubResource("NhaShape")
+shape = SubResource("NhaShape2")
 
 [node name="Quay1_Body" type="StaticBody3D" parent="Architecture" unique_id=163368826]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -12, 0, -10)
@@ -148,8 +166,8 @@ transform = Transform3D(2.5, 0, 0, 0, 2.5, 0, 0, 0, 2.5, 15.010971, 0, 1.5057659
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 12, 0, -10)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay2_Body" unique_id=70726954]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20.566887, 1.75, 8.444886)
-shape = SubResource("QuayShape")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20.53969, 1.75, 8.368803)
+shape = SubResource("QuayShape1")
 
 [node name="BanCa" parent="Architecture/Quay2_Body" unique_id=2222222 instance=ExtResource("6_ban_ca")]
 transform = Transform3D(5.5, 0, 0, 0, 5.5, 0, 0, 0, 5.5, -20.566406, -0.15558243, 8.453617)
@@ -164,8 +182,8 @@ transform = Transform3D(0.6, 0, 0, 0, 0.6, 0, 0, 0, 0.6, 0, 0, 0)
 transform = Transform3D(-2.8, 0, -4.2278825e-07, 0, 2.8, 0, 4.2278825e-07, 0, -2.8, -8.707314, 0.16039324, 28.697742)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay3_Body" unique_id=2139064802]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.08207703, 1.75, 0.12197113)
-shape = SubResource("QuayShape")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.08411598, 2.1032715, 0.07058239)
+shape = SubResource("QuayShape2")
 
 [node name="Quay4_Body" type="StaticBody3D" parent="Architecture" unique_id=2096218265]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 12, 0, -25)
@@ -174,8 +192,8 @@ transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 12, 0, -25)
 transform = Transform3D(5.2, 0, 0, 0, 5.2, 0, 0, 0, 5.2, 0, 0, 8.681564)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay4_Body" unique_id=1613576960]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 8.610493)
-shape = SubResource("QuayShape")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5243778, 1.75, 8.849562)
+shape = SubResource("QuayShape3")
 
 [node name="BaBanRau" parent="Architecture/Quay4_Body" unique_id=4444444 instance=ExtResource("9_ba_ban_rau")]
 transform = Transform3D(2.5, 0, 0, 0, 2.5, 0, 0, 0, 2.5, 2.295248, 0, 9.266053)
@@ -187,8 +205,8 @@ transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -35, 0, 0)
 transform = Transform3D(13, 0, 0, 0, 13, 0, 0, 0, 13, 11.13007, 0, 10.015415)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/TiemTapHoa_Body" unique_id=7777777]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.05, 3.68, -0.9)
-shape = SubResource("NhaShape")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.947547, 3.68, 9.670362)
+shape = SubResource("NhaShape3")
 
 [node name="NhaThoXay_Body" type="StaticBody3D" parent="Architecture" unique_id=8888888]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 35, 0, 0)
@@ -197,8 +215,8 @@ transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 35, 0, 0)
 transform = Transform3D(12, 0, 0, 0, 12, 0, 0, 0, 12, -11.746746, 0, 10.417721)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/NhaThoXay_Body" unique_id=1010101]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.38, 3.75, 0.32)
-shape = SubResource("NhaShape")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11.710987, 3.75, 10.24379)
+shape = SubResource("NhaShape4")
 
 [node name="NhaVanHoaOld_Body" type="StaticBody3D" parent="Architecture" unique_id=4040404]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -50, 0, -60)
@@ -207,8 +225,8 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -50, 0, -60)
 transform = Transform3D(-6.556708e-07, 0, -15, 0, 15, 0, 15, 0, -6.556708e-07, 75.5252, 0, 13.540688)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/NhaVanHoaOld_Body" unique_id=4242424]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.05, 3.68, -0.9)
-shape = SubResource("NhaShape")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 75.37032, 3.68, 13.253052)
+shape = SubResource("NhaShape5")
 
 [node name="Nature" type="Node3D" parent="." unique_id=2020202]
 
