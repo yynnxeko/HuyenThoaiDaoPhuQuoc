@@ -1,12 +1,14 @@
 [gd_scene format=3 uid="uid://cgk52ydq4ciow"]
 
-[ext_resource type="Script" path="res://scripts/game/world.gd" id="1_world"]
-[ext_resource type="Script" path="res://scripts/game/boat.gd" id="2_boat"]
-[ext_resource type="Script" path="res://scripts/ui/hud.gd" id="3_hud"]
-[ext_resource type="Shader" path="res://shaders/ocean_3d.gdshader" id="4_ocean"]
-[ext_resource type="PackedScene" uid="uid://c0bejaln4f88o" path="res://assets/sprites/boat1/boat1.glb" id="5_boat_model"]
-[ext_resource type="Script" path="res://scenes/game/water_ani.gd" id="6_5i0tg"]
-[ext_resource type="Script" path="res://scripts/game/ocean.gd" id="7_ocean_script"]
+[ext_resource type="Script" uid="uid://bjjx5fmhuxt1d" path="res://scripts/game/world.gd" id="1_world"]
+[ext_resource type="Script" uid="uid://cewbovor4minn" path="res://scripts/boat/boat_buoyancy.gd" id="2_boat"]
+[ext_resource type="Script" uid="uid://b3k32m0x4ec4d" path="res://scripts/ui/hud.gd" id="3_hud"]
+[ext_resource type="Script" uid="uid://pp6vnu6l40qj" path="res://scripts/game/ocean.gd" id="4_2a8rs"]
+[ext_resource type="Shader" uid="uid://dic0p0t27ahc1" path="res://shaders/ocean.gdshader" id="4_ocean"]
+[ext_resource type="PackedScene" uid="uid://ctjcx86vojr3n" path="res://assets/sprites/boat1/boat1.glb" id="5_boat_model"]
+[ext_resource type="Script" uid="uid://b3vd0kenx4wvb" path="res://scenes/game/water_ani.gd" id="6_5i0tg"]
+[ext_resource type="Script" uid="uid://4jv2lcjm61xb" path="res://scripts/weather/weather_manager.gd" id="8_weather"]
+[ext_resource type="Shader" uid="uid://de5gxsjfs15b8" path="res://shaders/rain_screen.gdshader" id="9_rain_screen"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMat_1"]
 sky_top_color = Color(0.3, 0.55, 0.9, 1)
@@ -31,19 +33,137 @@ fog_density = 0.002
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_ocean"]
 render_priority = 0
 shader = ExtResource("4_ocean")
-shader_parameter/shallow_color = Color(0.1, 0.6, 0.7, 0.85)
-shader_parameter/deep_color = Color(0.02, 0.15, 0.35, 0.95)
-shader_parameter/foam_color = Color(0.9, 0.95, 1, 0.6)
-shader_parameter/wave_speed = 1.0
-shader_parameter/wave_height = 0.35
-shader_parameter/wave_frequency = 2.0
-shader_parameter/foam_amount = 0.3
-shader_parameter/time_scale = 1.0
+shader_parameter/shallow_color = Color(0.1, 0.4, 0.5, 1)
+shader_parameter/deep_color = Color(0.05, 0.1, 0.2, 1)
+shader_parameter/wave_height = 0.5
+shader_parameter/wave_length = 20.0
+shader_parameter/wave_speed = 2.0
+shader_parameter/wind_direction = Vector2(1, 0)
+shader_parameter/time_offset = 0.0
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_ocean"]
 size = Vector2(300, 300)
 subdivide_width = 150
 subdivide_depth = 150
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_2a8rs"]
+size = Vector3(3.177, 0.3, 1.2)
+
+[sub_resource type="GDScript" id="GDScript_2a8rs"]
+script/source = "extends Camera3D
+
+var target_path := NodePath(\"../Boat3D\")
+
+var distance := 12.0
+var min_distance := 6.0
+var max_distance := 24.0
+
+var yaw := 0.0
+var pitch := 0.3
+var min_pitch := -0.5
+var max_pitch := 1.2
+
+var sensitivity := 0.01
+
+var target: Node3D
+var rotating := false
+
+# lưu trạng thái bình thường
+var normal_position: Vector3
+var normal_rotation: Vector3
+
+
+func _ready():
+	target = get_node(target_path)
+	current = true
+
+	# Đặt góc mặc định đúng như Inspector
+	distance = 15.0
+	yaw = 0.0
+	pitch = deg_to_rad(-15.0)
+	normal_position = Vector3(0, 9.32, 15)
+	normal_rotation = Vector3(deg_to_rad(-15.0), 0, 0)
+
+	global_position = normal_position
+	rotation = normal_rotation
+
+
+func _process(delta):
+	if not target:
+		return
+
+	if rotating:
+		# 🔥 ORBIT MODE
+		var offset = Vector3(
+			distance * sin(yaw) * cos(pitch),
+			distance * sin(pitch),
+			distance * cos(yaw) * cos(pitch)
+		)
+
+		global_position = target.global_position + offset
+		look_at(target.global_position, Vector3.UP)
+	else:
+		# 🔥 NORMAL MODE (giữ nguyên như cũ)
+		global_position = normal_position
+		rotation = normal_rotation
+
+
+func _unhandled_input(event):
+
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			if event.pressed and Input.is_key_pressed(KEY_ALT):
+				rotating = true
+
+				# 🔥 khi bắt đầu xoay → sync yaw/pitch từ cam hiện tại
+				var dir = (global_position - target.global_position).normalized()
+				yaw = atan2(dir.x, dir.z)
+				pitch = asin(dir.y)
+
+			else:
+				rotating = false
+
+		# zoom chỉ khi đang xoay
+		if rotating:
+			if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
+				distance = clamp(distance - 1.5, min_distance, max_distance)
+
+			elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
+				distance = clamp(distance + 1.5, min_distance, max_distance)
+
+
+	if event is InputEventMouseMotion and rotating:
+		yaw -= event.relative.x * sensitivity
+		pitch -= event.relative.y * sensitivity
+		pitch = clamp(pitch, min_pitch, max_pitch)
+"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_rain_screen"]
+shader = ExtResource("9_rain_screen")
+shader_parameter/rain_amount = 0.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rain_drop"]
+transparency = 1
+shading_mode = 0
+vertex_color_use_as_albedo = true
+albedo_color = Color(0.75, 0.85, 1, 0.35)
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_rain"]
+emission_shape = 2
+emission_sphere_radius = 1.0
+direction = Vector3(0, -1, 0)
+spread = 4.0
+initial_velocity_min = 35.0
+initial_velocity_max = 55.0
+angular_velocity_min = -2.0
+angular_velocity_max = 2.0
+gravity = Vector3(0, -15, 0)
+scale_min = 0.7
+scale_max = 1.2
+color = Color(0.75, 0.85, 1, 0.35)
+
+[sub_resource type="QuadMesh" id="QuadMesh_rain_drop"]
+size = Vector2(0.03, 0.35)
 
 [sub_resource type="Gradient" id="Gradient_lfrn8"]
 offsets = PackedFloat32Array(0, 0.98992443, 1)
@@ -125,22 +245,40 @@ transform = Transform3D(1, 0, 0, 0, 0.866, 0.5, 0, -0.5, 0.866, 0, 20, 10)
 light_color = Color(1, 0.95, 0.85, 1)
 shadow_enabled = true
 
-[node name="OceanMesh" type="MeshInstance3D" parent="." unique_id=611099925]
-script = ExtResource("7_ocean_script")
+[node name="WeatherManager" type="Node" parent="." unique_id=2107362401]
+script = ExtResource("8_weather")
+ocean = NodePath("../Ocean")
+world_env = NodePath("../WorldEnvironment")
+sun = NodePath("../DirectionalLight3D")
+rain_particles = NodePath("../RainParticles")
+rain_screen = NodePath("../RainScreenLayer/RainScreen")
+
+[node name="Ocean" type="MeshInstance3D" parent="." unique_id=611099925]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0012412071, -0.007851601, 0.02890277)
 material_override = SubResource("ShaderMaterial_ocean")
 mesh = SubResource("PlaneMesh_ocean")
+script = ExtResource("4_2a8rs")
+grid_size = 16.0
 
-[node name="Boat3D" type="Node3D" parent="." unique_id=2047875047]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3, 0)
+[node name="Boat3D" type="RigidBody3D" parent="." unique_id=2047875047 node_paths=PackedStringArray("ocean")]
+transform = Transform3D(-0.99014485, 0.027311359, 0.13735801, 0.02757271, 0.9996199, -2.616989e-09, -0.1373058, 0.0037873322, -0.99052167, 118.68031, 0.6096263, 0)
+mass = 60.0
+linear_damp = 0.05
+angular_damp = 0.05
 script = ExtResource("2_boat")
+ocean = NodePath("../Ocean")
 
 [node name="BoatModel" parent="Boat3D" unique_id=509898975 instance=ExtResource("5_boat_model")]
 transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0)
 
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Boat3D" unique_id=1445420136]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.164, 0.25, 0.001)
+shape = SubResource("BoxShape3D_2a8rs")
+
 [node name="Camera3D" type="Camera3D" parent="." unique_id=564460432]
-transform = Transform3D(1, 0, 0, 0, 0.966, 0.259, 0, -0.259, 0.966, 0, 5, 15)
 fov = 50.0
 far = 300.0
+script = SubResource("GDScript_2a8rs")
 
 [node name="HUD" type="CanvasLayer" parent="." unique_id=2035966363]
 layer = 20
@@ -153,6 +291,27 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("3_hud")
+
+[node name="RainScreenLayer" type="CanvasLayer" parent="." unique_id=1792185206]
+layer = 100
+
+[node name="RainScreen" type="ColorRect" parent="RainScreenLayer" unique_id=1936110408]
+material = SubResource("ShaderMaterial_rain_screen")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="RainParticles" type="GPUParticles3D" parent="." unique_id=722164025]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 25, 0)
+material_override = SubResource("StandardMaterial3D_rain_drop")
+emitting = false
+amount = 12000
+visibility_aabb = AABB(-120, -50, -120, 240, 100, 240)
+process_material = SubResource("ParticleProcessMaterial_rain")
+draw_pass_1 = SubResource("QuadMesh_rain_drop")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1124447894]
 transform = Transform3D(100, 0, 0, 0, -4.371139e-06, 100, 0, -100, -4.371139e-06, 0, 0, 0)

@@ -217,7 +217,7 @@ func _process(delta: float) -> void:
 	position += velocity * delta
 
 	# Keep gameplay on water lane.
-	position.z = clampf(position.z, -7.0, 7.0)
+	position.z = clampf(position.z, -35.0, 35.0)
 	
 	# === Wave-based water simulation (force-based) ===
 	if ocean_manager and ocean_manager.has_method("get_wave_height"):
