@@ -202,7 +202,7 @@ func _process_navigation(_delta: float) -> void:
 		# ĐỘNG CƠ DỰ PHÒNG: ÉP THUYỀN CHẠY TRỰC TIẾP TỪ WORLD.GD
 		# ========================================================
 		var turn_speed = 0.5  # Tốc độ quay vô lăng (chỉnh to lên nếu muốn cua gắt)
-		var move_speed = 7.0 # Tốc độ chạy tới/lui (chỉnh to lên nếu muốn chạy nhanh)
+		var move_speed = 3.5 # Tốc độ chạy tới/lui (chỉnh to lên nếu muốn chạy nhanh)
 		
 		# 1. Ép thuyền quay trái/phải
 		if steer_input != 0.0:

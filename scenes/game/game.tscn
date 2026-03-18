@@ -47,7 +47,7 @@ subdivide_width = 150
 subdivide_depth = 150
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_2a8rs"]
-size = Vector3(3.177, 0.3, 1.2)
+size = Vector3(3.177, 0.15, 1.2)
 
 [sub_resource type="GDScript" id="GDScript_2a8rs"]
 script/source = "extends Camera3D
@@ -272,7 +272,7 @@ ocean = NodePath("../Ocean")
 transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Boat3D" unique_id=1445420136]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.164, 0.25, 0.001)
+transform = Transform3D(0.99999964, -2.8620707e-07, 2.2351742e-07, 6.2864274e-09, 1, -5.3551048e-08, -5.364418e-07, 1.6996637e-08, 1, 0.16399384, 0.17499995, 0.0010051727)
 shape = SubResource("BoxShape3D_2a8rs")
 
 [node name="Camera3D" type="Camera3D" parent="." unique_id=564460432]
