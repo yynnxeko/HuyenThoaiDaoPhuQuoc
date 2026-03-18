@@ -258,7 +258,7 @@ mesh = SubResource("TerminalMesh")
 shape = SubResource("TerminalShape")
 
 [node name="Sand" type="StaticBody3D" parent="." unique_id=1241565030]
-transform = Transform3D(1, 0, 0, 0, 0.9998477, 0.017452406, 0, -0.017452406, 0.9998477, -0.09898591, -0.30388778, -69.96036)
+transform = Transform3D(1, 0, 0, 0, 0.9998477, 0.017452406, 0, -0.017452406, 0.9998477, -0.09898591, -0.45330185, -69.96036)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Sand" unique_id=1265361068]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.07758522, 0, -0.05430603)
