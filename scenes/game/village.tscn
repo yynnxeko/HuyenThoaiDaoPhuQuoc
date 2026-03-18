@@ -64,7 +64,7 @@ emission_energy_multiplier = 4.0
 size = Vector3(5, 0.1, 5)
 
 [sub_resource type="BoxShape3D" id="TerminalShape"]
-size = Vector3(5, 2, 5)
+size = Vector3(8, 3, 8)
 
 [sub_resource type="ShaderMaterial" id="SandDunesMat"]
 render_priority = 0
@@ -255,6 +255,7 @@ material_override = SubResource("TerminalMat")
 mesh = SubResource("TerminalMesh")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="FerryTerminal" unique_id=721741137]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15.092492, 0, -8.721512)
 shape = SubResource("TerminalShape")
 
 [node name="Sand" type="StaticBody3D" parent="." unique_id=1241565030]
