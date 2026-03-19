@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://dbxx0ajp8bgg4"]
 
 [ext_resource type="Script" uid="uid://c2ndq2eo75f2t" path="res://scripts/game/village.gd" id="1_v"]
+[ext_resource type="Texture2D" uid="uid://bay3ak8k8pevv" path="res://assets/sprites/sky/kloppenheim_06_puresky_4k.exr" id="2_1ye51"]
 [ext_resource type="PackedScene" uid="uid://c6hoy8r6ia35d" path="res://assets/sprites/village/nha1.glb" id="3_nha1"]
 [ext_resource type="PackedScene" uid="uid://r88fj2dq7p6q" path="res://assets/sprites/village/nha2.glb" id="4_nha2"]
 [ext_resource type="PackedScene" uid="uid://chnrl2gwcovs" path="res://assets/sprites/village/quayThit.glb" id="5_stall"]
@@ -27,7 +28,7 @@
 [ext_resource type="AudioStream" uid="uid://cnnxeqt7dxlqb" path="res://assets/sound/player/da_con_moi_ve_4ae554d7-4234-4c8a-bcef-1b64164a1b47.mp3" id="19_1ye51"]
 [ext_resource type="PackedScene" path="res://scenes/ui/dialogue_box.tscn" id="19_dialogue"]
 [ext_resource type="AudioStream" uid="uid://bivtdxlvbwoco" path="res://assets/sound/truong_lang/da_lau_lam_roi_ta_moi_gap_lai_chau_lan_cuoi_gap_916f3fab-ba39-4939-abaf-b8bcd8681da1.mp3" id="20_kttx1"]
-[ext_resource type="Script" uid="uid://cn44pmodbukwl" path="res://scripts/game/npc_interaction.gd" id="20_npc"]
+[ext_resource type="Script" uid="uid://cllk1lw7o6xpa" path="res://scripts/game/npc_interaction.gd" id="20_npc"]
 [ext_resource type="AudioStream" uid="uid://t2hk5o1gmgq2" path="res://assets/sound/truong_lang/ong_ba_de_lai_cho_chau_chiec_tau_ngoai_kia_1318b02a-3714-4f7b-8a63-70d9d9bd6ec8.mp3" id="21_rp4k2"]
 [ext_resource type="Texture2D" uid="uid://lrac5t4de0ol" path="res://assets/sprites/cat/fine_sand_material_0.png" id="21_sand_albedo"]
 [ext_resource type="AudioStream" uid="uid://dbtbx7bkw0j4d" path="res://assets/sound/player/con_thay_roi_no_cu_qua_662d31aa-3e7a-4072-a004-f6e4cb49089d.mp3" id="22_mpokr"]
@@ -35,20 +36,19 @@
 [ext_resource type="AudioStream" uid="uid://c7osu6blha31v" path="res://assets/sound/truong_lang/lang_nay_tung_song_duoc_la_nho_bien_gio_nguoi_c0b39845-4b23-4e04-b2ac-525816bb4a90.mp3" id="23_3xa1c"]
 [ext_resource type="Texture2D" uid="uid://cn3xvx5geohuw" path="res://assets/sprites/cat/fine_sand_material_2.png" id="23_sand_normal"]
 [ext_resource type="AudioStream" uid="uid://bn33onha1isd" path="res://assets/sound/player/con_se_co_gang_phu_giup_lang_minh_lam_tiep_nhung_fc456993-3b88-40cf-bfb4-f5763634499f.mp3" id="24_dr3lv"]
-[ext_resource type="Shader" uid="uid://bg7o2ramynds0" path="res://shaders/sand_shore_dunes.gdshader" id="24_sand_shader"]
-[ext_resource type="Script" uid="uid://cw5ih24qw4boy" path="res://scripts/game/sky_day_night.gd" id="25_sky_switcher"]
+[ext_resource type="Shader" uid="uid://ukgimt7je4i5" path="res://shaders/sand_shore_dunes.gdshader" id="24_sand_shader"]
+[ext_resource type="Script" uid="uid://dlu6erhv2a4np" path="res://scripts/game/sky_day_night.gd" id="25_sky_switcher"]
 [ext_resource type="PackedScene" uid="uid://skd8m35qhp3a" path="res://assets/sprites/village/cay01.glb" id="26_cay01"]
 [ext_resource type="PackedScene" uid="uid://ccp7fmhc8hs7r" path="res://assets/sprites/village/cay02.glb" id="27_cay02"]
 [ext_resource type="PackedScene" uid="uid://bjjuwljt1tvd0" path="res://assets/sprites/village/nha_truong_lang.glb" id="28_nha_truong_lang"]
 [ext_resource type="PackedScene" uid="uid://danjipv0ap3kr" path="res://assets/sprites/village/truong_lang.glb" id="29_truong_lang"]
 [ext_resource type="PackedScene" uid="uid://cem2042nd2juk" path="res://assets/sprites/village/vuon_rau03.glb" id="30_vuon_rau03"]
 
-[sub_resource type="ProceduralSkyMaterial" id="SkyMat_v"]
-sky_top_color = Color(0.2, 0.5, 0.8, 1)
-sky_horizon_color = Color(0.65, 0.7, 0.8, 1)
+[sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_kttx1"]
+panorama = ExtResource("2_1ye51")
 
 [sub_resource type="Sky" id="Sky_v"]
-sky_material = SubResource("SkyMat_v")
+sky_material = SubResource("PanoramaSkyMaterial_kttx1")
 
 [sub_resource type="Environment" id="Env_v"]
 background_mode = 2
