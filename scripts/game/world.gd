@@ -860,7 +860,7 @@ func _spawn_decorative_fish() -> void:
 			wrapper.add_child(fish_instance)
 			
 			fish_instance.position = Vector3.ZERO
-			fish_instance.rotation.y = PI/2 
+			fish_instance.rotation.y = PI
 			
 			wrapper.position = school_center + Vector3(randf_range(-3, 3), randf_range(-1, 1), randf_range(-3, 3))
 			
@@ -1357,7 +1357,7 @@ func _update_boat_waves(delta: float) -> void:
 	# Nếu số này DƯƠNG (+): Thuyền nổi lên cao
 	# Bạn hãy tự chỉnh số 0.5 này lên xuống (ví dụ 1.0, 1.5, hoặc 0.0) 
 	# cho đến khi thấy mạn thuyền nằm vừa vặn trên mặt nước nhé!
-	var boat_sink_depth = 0.2
+	var boat_sink_depth = 0.3
 	
 	var target_y = water_level_y + wave_y + boat_sink_depth
 	
