@@ -11,8 +11,8 @@ class_name BoatBuoyancy
 @export var float_point_height: float = -0.7 # 🔥 FIX
 
 @export_group("Buoyancy")
-@export var buoyancy_force: float = 320.0
-@export var max_buoyancy_force: float = 1200.0
+@export var buoyancy_force: float = 380.0
+@export var max_buoyancy_force: float = 2500.0
 @export var vertical_damping: float = 8.0
 
 @export_group("Water Drag")
@@ -37,7 +37,7 @@ class_name BoatBuoyancy
 
 @export_group("Safety")
 @export var max_linear_speed: float = 35.0
-@export var water_stick_force: float = 15.0
+@export var water_stick_force: float = 25.0
 @export var max_angular_speed: float = 8.0
 
 var depth_cache = {}
@@ -102,14 +102,14 @@ func _physics_process(delta: float) -> void:
 		var wave_h = ocean_controller.get_wave_height(world_pos) if ocean_controller else 0.0
 
 		var raw_depth = wave_h - world_pos.y
-		raw_depth = clamp(raw_depth, -0.5, 2.0)
+		raw_depth = clamp(raw_depth, -0.5, 5.0)
 
 		if raw_depth < -0.2:
 			continue
 
 		var key = marker.get_instance_id()
 		var prev = depth_cache.get(key, raw_depth)
-		var depth = lerp(prev, raw_depth, 0.25)
+		var depth = lerp(prev, raw_depth, 0.45)
 		depth_cache[key] = depth
 
 		is_in_water = true
@@ -131,7 +131,7 @@ func _physics_process(delta: float) -> void:
 		var wave_h = ocean_controller.get_wave_height(global_position)
 		var diff = wave_h - global_position.y
 		var stick_force = diff * water_stick_force * mass
-		stick_force = clamp(stick_force, -2000.0, 2000.0)
+		stick_force = clamp(stick_force, -5000.0, 5000.0)
 		apply_central_force(Vector3.UP * stick_force)
 
 		# 🔥 DOWNFORCE (fix bay)
