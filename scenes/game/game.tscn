@@ -1,16 +1,16 @@
 [gd_scene format=3 uid="uid://cgk52ydq4ciow"]
 
-[ext_resource type="Script" uid="uid://bv3jla0ax5qp4" path="res://scripts/game/world.gd" id="1_world"]
+[ext_resource type="Script" uid="uid://b2hbtm7tc3oft" path="res://scripts/game/world.gd" id="1_world"]
 [ext_resource type="Texture2D" uid="uid://bay3ak8k8pevv" path="res://assets/sprites/sky/kloppenheim_06_puresky_4k.exr" id="2_4j704"]
-[ext_resource type="Script" uid="uid://bcb455re60stj" path="res://scripts/boat/boat_buoyancy.gd" id="2_boat"]
+[ext_resource type="Script" uid="uid://bh52kacekfw7g" path="res://scripts/boat/boat_buoyancy.gd" id="2_boat"]
 [ext_resource type="Script" uid="uid://vqlkvtjqdoag" path="res://scripts/ui/hud.gd" id="3_hud"]
 [ext_resource type="Script" uid="uid://pp6vnu6l40qj" path="res://scripts/game/ocean.gd" id="4_2a8rs"]
-[ext_resource type="Shader" uid="uid://nuqv6sbgi6a2" path="res://shaders/ocean.gdshader" id="4_ocean"]
+[ext_resource type="Shader" uid="uid://ghy4hccwl4qw" path="res://shaders/ocean.gdshader" id="4_ocean"]
 [ext_resource type="PackedScene" uid="uid://ctjcx86vojr3n" path="res://assets/sprites/boat1/boat1.glb" id="5_boat_model"]
 [ext_resource type="Script" uid="uid://b3vd0kenx4wvb" path="res://scenes/game/water_ani.gd" id="6_5i0tg"]
-[ext_resource type="Script" uid="uid://cwd4efpwtb4i0" path="res://scripts/weather/weather_manager.gd" id="8_weather"]
-[ext_resource type="Shader" uid="uid://cglif3rbd4yw8" path="res://shaders/rain_screen.gdshader" id="9_rain_screen"]
-[ext_resource type="Script" path="res://scripts/game/sky_day_night.gd" id="10_sky_switcher"]
+[ext_resource type="Script" uid="uid://raia4wnabqy6" path="res://scripts/weather/weather_manager.gd" id="8_weather"]
+[ext_resource type="Shader" uid="uid://de5gxsjfs15b8" path="res://shaders/rain_screen.gdshader" id="9_rain_screen"]
+[ext_resource type="Script" uid="uid://cw5ih24qw4boy" path="res://scripts/game/sky_day_night.gd" id="10_sky_switcher"]
 
 [sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_kp23o"]
 panorama = ExtResource("2_4j704")
@@ -237,8 +237,8 @@ script = ExtResource("1_world")
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=356525084]
 environment = SubResource("Environment_1")
 script = ExtResource("10_sky_switcher")
-sun_light_path = NodePath("../DirectionalLight3D")
 switch_sky = true
+sun_light_path = NodePath("../DirectionalLight3D")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1619812727]
 transform = Transform3D(1, 0, 0, 0, 0.866, 0.5, 0, -0.5, 0.866, 0, 20, 10)

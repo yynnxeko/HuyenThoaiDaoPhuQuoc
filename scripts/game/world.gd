@@ -29,6 +29,7 @@ var bait_x2d: float = 6000.0
 var bait_depth_ratio: float = 0.0
 
 # Underwater layers
+var mist_particles: GPUParticles3D = null
 var plankton_particles: GPUParticles3D = null
 var underwater_plane: MeshInstance3D = null
 var underwater_props_root: Node3D = null
@@ -91,10 +92,10 @@ var fish_id_to_asset = {
 	"ca_hong": "res://assets/sprites/ca/paracheirodon_innesi___tetra_neon.glb",
 	"ca_bop": "res://assets/sprites/ca/paracheirodon_innesi___tetra_neon.glb",
 	"ca_ngu": "res://assets/sprites/ca/jikin_goldfish.glb",
-	"ca_kiem": "res://assets/sprites/ca/tosakin_goldfish.glb",
+	"ca_kiem": "res://assets/sprites/ca/model_62a_-_shortfin_mako.glb",
 	"ca_map": "res://assets/sprites/ca/model_62a_-_shortfin_mako.glb",
 	"muc_khong_lo": "res://assets/sprites/ca/bream_fish__dorade_royale.glb",
-	"rong_bien": "res://assets/sprites/ca/tosakin_goldfish.glb",
+	"rong_bien": "res://assets/sprites/ca/jikin_goldfish.glb",
 	"rua_vang": "res://assets/sprites/ca/jikin_goldfish.glb"
 }
 
@@ -114,6 +115,7 @@ func _ready() -> void:
 	camera = get_node_or_null("Camera3D")
 	ocean_mesh = get_node_or_null("OceanMesh") 
 	ocean = ocean_mesh # Đỡ phải tìm 2 lần
+	
 	
 	if camera:
 		camera.current = true
@@ -421,19 +423,20 @@ func _update_underwater_effects(delta: float) -> void:
 			plankton_particles.global_position = camera.global_position
 			
 		if cam_y < water_level_y:
-			var depth = water_level_y - cam_y
-			# Volumetric fog cần thông số density nhỏ hơn sương mù thường rất nhiều
-			var target_density = clampf(0.005 + (depth * 0.002), 0.005, 0.05) 
-			
-			env.environment.volumetric_fog_enabled = true # ĐÃ SỬA
-			env.environment.volumetric_fog_albedo = Color(0.05, 0.45, 0.6) # ĐÃ SỬA
-			env.environment.volumetric_fog_density = lerpf(env.environment.volumetric_fog_density, target_density, delta * 3.0)
-			
+			# ... (dưới nước giữ nguyên) ...
 			if plankton_particles: plankton_particles.emitting = true
 		else:
-			env.environment.volumetric_fog_density = lerpf(env.environment.volumetric_fog_density, 0.0, delta * 5.0)
-			if env.environment.volumetric_fog_density < 0.0001:
-				env.environment.volumetric_fog_enabled = false
+			# === ĐÃ SỬA: Thêm sương mù mù mù nhẹ nhàng post-processing khi trên trời ===
+			# Đặt density thấp hơn, but increase it as camera gets higher
+			env.environment.volumetric_fog_enabled = true
+			env.environment.volumetric_fog_albedo = Color(0.8, 0.9, 1.0) # Màu trời mù tươi
+			
+			# Tính toán density mù dựa trên độ cao
+			var mist_density = 0.002
+			if cam_y > water_level_y + 10.0:
+				mist_density = clampf(0.002 + (cam_y - 10.0) * 0.001, 0.002, 0.01)
+				
+			env.environment.volumetric_fog_density = lerpf(env.environment.volumetric_fog_density, mist_density, delta * 3.0)
 			
 			if plankton_particles: plankton_particles.emitting = false
 
@@ -835,7 +838,8 @@ func _spawn_decorative_fish() -> void:
 
 	for b in range(school_count):
 		var f_data = zone_fish.pick_random()
-		var asset_path = fish_id_to_asset.get(f_data.id, "res://assets/sprites/ca/guppy_fish.glb")
+		var fallback_path = "res://assets/sprites/ca/bream_fish__dorade_royale.glb"
+		var asset_path = fish_id_to_asset.get(f_data.id, fallback_path)
 		var fish_scene = load(asset_path)
 		if not fish_scene: continue
 		
@@ -852,18 +856,23 @@ func _spawn_decorative_fish() -> void:
 		
 		for i in range(school_size):
 			var fish_instance = fish_scene.instantiate()
+			_fix_fish_material(fish_instance)
 			var wrapper = Node3D.new()
 			add_child(wrapper)
 			wrapper.add_child(fish_instance)
 			
 			fish_instance.position = Vector3.ZERO
-			fish_instance.rotation.y = PI/2 
+			fish_instance.rotation.y = PI
 			
 			wrapper.position = school_center + Vector3(randf_range(-3, 3), randf_range(-1, 1), randf_range(-3, 3))
 			
-			var base_scale = f_data.max_size * 0.05
-			var s = clampf(base_scale, 0.15, 1.5)
-			if f_data.rarity == "legendary": s = clampf(base_scale, 0.8, 2.5)
+			var base_scale = f_data.max_size * 0.03
+			var s = clampf(base_scale, 0.08, 0.4)
+			if f_data.rarity == "legendary": s = clampf(base_scale, 0.2, 0.6)
+			
+			if asset_path.contains("jikin_goldfish"): s *= 0.03
+			elif asset_path.contains("model_62a"): s *= 0.012
+			elif asset_path.contains("bream_fish"): s *= 0.3
 				
 			wrapper.scale = Vector3(s * randf_range(0.85, 1.15), s * randf_range(0.85, 1.15), s * randf_range(0.85, 1.15))
 			_setup_fish_animation(fish_instance, 1.0 + f_data.speed * 0.02)
@@ -884,6 +893,7 @@ func _update_decorative_fish(delta: float) -> void:
 		var node: Node3D = fish["node"]
 		if not is_instance_valid(node): continue
 		
+		# 1. TƯ DUY TÌM ĐƯỜNG MỚI
 		fish["think_timer"] -= delta
 		if fish["think_timer"] <= 0.0 or node.global_position.distance_to(fish["target_pos"]) < 1.5:
 			fish["think_timer"] = randf_range(3.0, 7.0)
@@ -896,13 +906,26 @@ func _update_decorative_fish(delta: float) -> void:
 			fish["target_pos"] = node.global_position + new_dir * randf_range(5.0, 15.0)
 			
 			var current_boat_x = boat.position.x if boat != null else 0.0
+			
+			# Xích cá lại, không cho bơi cách thuyền quá 45 mét
 			fish["target_pos"].x = clampf(fish["target_pos"].x, current_boat_x - 45.0, current_boat_x + 45.0)
+			
+			# Lặn không vượt quá đáy hoặc nổi lên quá mặt nước (dùng chung cho mọi loại cá)
 			fish["target_pos"].y = clampf(fish["target_pos"].y, water_level_y - 25.0, water_level_y - 2.0)
 			fish["target_pos"].z = clampf(fish["target_pos"].z, -15.0, 15.0)
 			
+		# 2. BẺ LÁI & DI CHUYỂN
 		var desired_velocity = (fish["target_pos"] - node.global_position).normalized() * fish["base_speed"]
 		fish["velocity"] = fish["velocity"].lerp(desired_velocity, delta * 1.2)
 		node.global_position += fish["velocity"] * delta
+
+		# === ĐÃ SỬA: ÉP VỊ TRÍ Y CỦA CÁ LUÔN NẰM DƯỚI NƯỚC ===
+		# Ngăn cá bay lên, ngay cả khi quán tính cố gắng đẩy chúng lên.
+		# Đặt cách mặt nước ít nhất 1.5 đơn vị để tránh Z-fighting.
+		node.global_position.y = min(node.global_position.y, water_level_y - 1.5)
+		
+		if node.global_position.y >= water_level_y - 3.5:
+			node.global_position.y = water_level_y - 3.5
 		
 		if fish["velocity"].length_squared() > 0.001:
 			var look_target = node.global_position + fish["velocity"]
@@ -1000,6 +1023,7 @@ func _on_visual_fish_update(pos_2d: Vector2, fish_data, p_visible: bool, is_figh
 		if not fish_scene: return
 		
 		var fish_instance = fish_scene.instantiate()
+		_fix_fish_material(fish_instance)
 		active_fish_3d = Node3D.new()
 		add_child(active_fish_3d)
 		active_fish_3d.add_child(fish_instance)
@@ -1052,10 +1076,19 @@ func _on_visual_fish_update(pos_2d: Vector2, fish_data, p_visible: bool, is_figh
 		var follow_speed = 12.0 if is_fighting else 4.0
 		active_fish_3d.global_position = active_fish_3d.global_position.lerp(final_target_pos, follow_speed * get_process_delta_time())
 		
+		if active_fish_3d.global_position.y > water_level_y - 2.0:
+			active_fish_3d.global_position.y = water_level_y - 2.0
+			
 		# Scale kích thước cá
-		var s = fish_data.max_size * 0.05
-		if fish_data.id == "ca_map": s *= 0.02
-		if fish_data.rarity == "legendary": s = clampf(s, 0.15, 0.4)
+		var s = fish_data.max_size * 0.03
+		if fish_data.id == "ca_map": s *= 0.015
+		s = clampf(s, 0.08, 0.5)
+		
+		var asset_path = fish_id_to_asset.get(fish_data.id, "res://assets/sprites/ca/bream_fish__dorade_royale.glb")
+		if asset_path.contains("jikin_goldfish"): s *= 0.03
+		elif asset_path.contains("model_62a"): s *= 0.012
+		elif asset_path.contains("bream_fish"): s *= 0.3
+		
 		active_fish_3d.scale = active_fish_3d.scale.lerp(Vector3(s, s, s), 5.0 * get_process_delta_time())
 		
 		# ==========================================
@@ -1103,6 +1136,7 @@ func _on_nearby_visual_update(fish_list: Array) -> void:
 			var fish_scene = load(asset_path)
 			if fish_scene:
 				var fish_instance = fish_scene.instantiate()
+				_fix_fish_material(fish_instance)
 				fish_instance.position = Vector3.ZERO
 				fish_instance.rotation.y = PI/2
 				node.add_child(fish_instance)
@@ -1126,8 +1160,18 @@ func _on_nearby_visual_update(fish_list: Array) -> void:
 		# Smooth position
 		node.global_position = node.global_position.lerp(target_pos, 5.0 * get_process_delta_time())
 		
-		var s = f_data_2d.size * 0.0018
-		if f_id == "ca_map": s *= 0.03
+		if node.global_position.y > water_level_y - 2.5:
+			node.global_position.y = water_level_y - 2.5
+			
+		var s = f_data_2d.size * 0.0012
+		if f_id == "ca_map": s *= 0.015
+		s = clampf(s, 0.08, 0.5)
+		
+		var asset_path = fish_id_to_asset.get(f_id, "res://assets/sprites/ca/bream_fish__dorade_royale.glb")
+		if asset_path.contains("jikin_goldfish"): s *= 0.03
+		elif asset_path.contains("model_62a"): s *= 0.012
+		elif asset_path.contains("bream_fish"): s *= 0.3
+		
 		node.scale = node.scale.lerp(Vector3(s, s, s), 4.0 * get_process_delta_time())
 		
 		# Smooth rotation
@@ -1326,7 +1370,7 @@ func _setup_node_animation(node: Node, anim_speed: float = 1.0) -> void:
 			anim_player.speed_scale = anim_speed
 			
 # ==========================================
-# THÊM MỚI: HIỆU ỨNG THUYỀN DẬP DÌU THEO SÓNG
+# HIỆU ỨNG THUYỀN DẬP DÌU THEO SÓNG
 # ==========================================
 func _update_boat_waves(delta: float) -> void:
 	if boat == null:
@@ -1338,8 +1382,13 @@ func _update_boat_waves(delta: float) -> void:
 	var wave_y = sin(time_sec * 2.0 + boat.global_position.x * 0.1) * 0.3
 	wave_y += cos(time_sec * 1.5 + boat.global_position.z * 0.15) * 0.2
 	
-	# Ép thuyền chìm xuống nước
-	var boat_sink_depth = -0.6
+	# === ĐÃ SỬA: CHỈNH LẠI ĐỘ NỔI CỦA THUYỀN ===
+	# Nếu số này ÂM (-): Thuyền chìm xuống
+	# Nếu số này DƯƠNG (+): Thuyền nổi lên cao
+	# Bạn hãy tự chỉnh số 0.5 này lên xuống (ví dụ 1.0, 1.5, hoặc 0.0) 
+	# cho đến khi thấy mạn thuyền nằm vừa vặn trên mặt nước nhé!
+	var boat_sink_depth = 0.3
+	
 	var target_y = water_level_y + wave_y + boat_sink_depth
 	
 	boat.global_position.y = lerpf(boat.global_position.y, target_y, 4.0 * delta)
@@ -1350,6 +1399,35 @@ func _update_boat_waves(delta: float) -> void:
 	
 	boat.rotation.z = lerp_angle(boat.rotation.z, pitch_angle, 3.0 * delta)
 	boat.rotation.x = lerp_angle(boat.rotation.x, roll_angle, 3.0 * delta)
+
+# ==========================================
+# FIX LỖI VẬT LIỆU XUYÊN NƯỚC 
+# ==========================================
+func _fix_fish_material(node: Node) -> void:
+	if node is MeshInstance3D:
+		var mesh = node.mesh
+		if mesh != null:
+			for i in range(mesh.get_surface_count()):
+				var mat = node.get_surface_override_material(i)
+				if mat == null:
+					mat = mesh.surface_get_material(i)
+				
+				if mat is BaseMaterial3D:
+					var new_mat = mat.duplicate()
+					# Bắt buộc bật Depth Test để cá bị che khuất bởi mặt nước
+					new_mat.no_depth_test = false
+					new_mat.render_priority = 0
+					
+					# Xóa TOÀN BỘ độ trong suốt (Transparent) của con cá, biến nó thành khối đặc (Opaque)
+					# Đây là CÁCH DUY NHẤT để cá 100% bị che khuất bởi mặt nước có shader trong suốt
+					new_mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+					new_mat.cull_mode = BaseMaterial3D.CULL_BACK
+					new_mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_DISABLED
+						
+					node.set_surface_override_material(i, new_mat)
+	
+	for child in node.get_children():
+		_fix_fish_material(child)
 
 # ==========================================
 # HÀM CHẠY ANIMATION CHO CÁ (BỊ THẤT LẠC)
@@ -1400,3 +1478,26 @@ func _setup_fish_animation(node: Node, anim_speed: float = 1.0) -> void:
 			
 			anim_player.play(anim_to_play)
 			anim_player.speed_scale = anim_speed
+
+func _setup_air_effects() -> void:
+	# Tạo bụi phù du mù mờ cho post-processing fog khí mù mù
+	mist_particles = GPUParticles3D.new()
+	mist_particles.name = "MistParticles"
+	mist_particles.emitting = false # Sẽ được bật khi ở trên trời
+	add_child(mist_particles)
+	
+	# === TẠO CHẤT LIỆU MÙ MỜ PHÙ DU SIÊU MÙ MỜ ===
+	var mist_mat = ShaderMaterial.new()
+	mist_mat.shader = load("res://assets/shaders/fog_particles_sky.gdshader") # Tui sẽ đưa shader ở lượt sau
+	
+	mist_particles.process_material = mist_mat
+	
+	# === TẠO MESH MÙ MỜ PHÙ DU ===
+	var mist_mesh = QuadMesh.new()
+	mist_mesh.material = mist_mat
+	mist_mesh.size = Vector2(0.3, 0.3)
+	
+	mist_particles.draw_pass_1 = mist_mesh
+	
+	# Đặt số lượng bụi khổng lồ cho bầu trời
+	mist_particles.amount = 500

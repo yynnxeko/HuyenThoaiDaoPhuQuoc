@@ -45,6 +45,7 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed:
 		if event.keycode == KEY_ESCAPE:
 			market_closed.emit()
+			get_viewport().set_input_as_handled()
 		elif event.keycode == KEY_UP:
 			hover_index = max(0, hover_index - 1)
 		elif event.keycode == KEY_DOWN:
