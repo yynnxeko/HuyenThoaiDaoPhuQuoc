@@ -30,7 +30,8 @@ func _ready() -> void:
 	set_process_input(true)
 
 func _input(event: InputEvent) -> void:
-	if event.is_action_pressed("toggle_weather"):
+	# Toggle weather with action or 'P' key for easy testing
+	if event.is_action_pressed("toggle_weather") or (event is InputEventKey and event.keycode == KEY_P and event.pressed and not event.echo):
 		print("Weather toggled")
 		toggle_weather()
 
@@ -38,9 +39,11 @@ func _process(delta: float) -> void:
 	wind_strength = lerpf(wind_strength, target_wind_strength, delta * 0.5)
 	var ocean_controller := ocean as OceanController
 	if ocean_controller:
-		# Wind affects wave height and speed
-		ocean_controller.wave_height = lerpf(ocean_controller.wave_height, 0.5 * wind_strength, delta * 0.2)
-		ocean_controller.wave_speed = lerpf(ocean_controller.wave_speed, 2.0 * wind_strength, delta * 0.2)
+		# Wind affects both shallow and deep wave height and speed dynamically
+		ocean_controller.s_amplitude = lerpf(ocean_controller.s_amplitude, 0.25 * wind_strength, delta * 0.2)
+		ocean_controller.d_amplitude = lerpf(ocean_controller.d_amplitude, 2.5 * wind_strength, delta * 0.2)
+		ocean_controller.s_speed = lerpf(ocean_controller.s_speed, 1.3 * wind_strength, delta * 0.2)
+		ocean_controller.d_speed = lerpf(ocean_controller.d_speed, 0.8 * wind_strength, delta * 0.2)
 	
 	_update_rain_screen()
 
@@ -65,7 +68,16 @@ func set_weather(type: Weather) -> void:
 		Weather.RAIN:
 			target_wind_strength = 2.0
 			_tween_environment(Color(0.2, 0.2, 0.3), 0.3, 0.05) # Dark blue/gray, low energy, fog
-			if rain_particles: rain_particles.emitting = true
+			if rain_particles:
+				# Mở rộng vùng đổ mưa lên 300x300 mét mỗi khi gọi mưa
+				if rain_particles.process_material is ParticleProcessMaterial:
+					var pm = rain_particles.process_material as ParticleProcessMaterial
+					pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+					pm.emission_box_extents = Vector3(150.0, 15.0, 150.0)
+					
+				rain_particles.emitting = true
+				if not rain_particles.is_visible_in_tree():
+					rain_particles.show()
 			_tween_rain_amount(1.0)
 			if rain_sound: _fade_sound(rain_sound, 0)
 			if wind_sound: _fade_sound(wind_sound, 0)
@@ -79,7 +91,6 @@ func _tween_environment(sky_tint: Color, sun_energy: float, fog_density: float) 
 		tween.tween_property(sun, "light_energy", sun_energy, 5.0)
 	tween.tween_property(env, "fog_light_color", sky_tint, 5.0)
 	tween.tween_property(env, "fog_density", fog_density, 5.0)
-	# env.adjustment_saturation can be adjusted here too if enabled
 
 func _fade_sound(player: AudioStreamPlayer, target_db: float) -> void:
 	if not player: return
@@ -103,8 +114,13 @@ func _update_rain_screen() -> void:
 	mat.set_shader_parameter("rain_amount", _rain_amount)
 
 func reset_weather_timer() -> void:
-	change_timer.wait_time = randf_range(120.0, 300.0) # 2-5 minutes
+	change_timer.wait_time = randf_range(120.0, 300.0) # 2-5 minutes random weather interval
 	change_timer.start()
 
 func _on_weather_timer_timeout() -> void:
-	toggle_weather()
+	# Randomize weather, 30% chance of rain, 70% chance of clear
+	if randf() < 0.3:
+		set_weather(Weather.RAIN)
+	else:
+		set_weather(Weather.CLEAR)
+	reset_weather_timer()

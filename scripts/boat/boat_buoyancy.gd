@@ -1,8 +1,6 @@
 extends RigidBody3D
 class_name BoatBuoyancy
 
-const OceanController = preload("res://scripts/game/ocean.gd")
-
 @export var ocean: Node
 
 @export_group("Float Points")

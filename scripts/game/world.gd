@@ -29,6 +29,7 @@ var bait_x2d: float = 6000.0
 var bait_depth_ratio: float = 0.0
 
 # Underwater layers
+var mist_particles: GPUParticles3D = null
 var plankton_particles: GPUParticles3D = null
 var underwater_plane: MeshInstance3D = null
 var underwater_props_root: Node3D = null
@@ -114,6 +115,7 @@ func _ready() -> void:
 	camera = get_node_or_null("Camera3D")
 	ocean_mesh = get_node_or_null("OceanMesh") 
 	ocean = ocean_mesh # Đỡ phải tìm 2 lần
+	
 	
 	if camera:
 		camera.current = true
@@ -205,7 +207,7 @@ func _process_navigation(_delta: float) -> void:
 		# ĐỘNG CƠ DỰ PHÒNG: ÉP THUYỀN CHẠY TRỰC TIẾP TỪ WORLD.GD
 		# ========================================================
 		var turn_speed = 0.5  # Tốc độ quay vô lăng (chỉnh to lên nếu muốn cua gắt)
-		var move_speed = 7.0 # Tốc độ chạy tới/lui (chỉnh to lên nếu muốn chạy nhanh)
+		var move_speed = 3.5 # Tốc độ chạy tới/lui (chỉnh to lên nếu muốn chạy nhanh)
 		
 		# 1. Ép thuyền quay trái/phải
 		if steer_input != 0.0:
@@ -316,6 +318,25 @@ func _update_lighting(_delta: float) -> void:
 		"night":
 			sun_light.light_color = Color(0.3, 0.35, 0.6)
 			sun_light.light_energy = 0.2
+
+	# Make night actually dark even with HDRI sky:
+	# - Force ambient from COLOR (not SKY), so we can control it.
+	# - Reduce background energy at night to avoid "washed-out" bright scenes.
+	if env and env.environment:
+		var e := env.environment
+		e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		
+		# Start darkening from 18:00, finish by 20:00.
+		var h := fposmod(TimeWeather.game_hour, 24.0)
+		var t := clampf((h - 18.0) / 2.0, 0.0, 1.0) # 0 at 18:00, 1 at 20:00
+		if period == "night":
+			t = 1.0
+		
+		var day_col := Color(0.95, 0.98, 1.0)
+		var night_col := Color(0.12, 0.16, 0.25)
+		e.ambient_light_color = day_col.lerp(night_col, t)
+		e.ambient_light_energy = lerpf(1.0, 0.18, t)
+		e.background_energy_multiplier = lerpf(1.0, 0.25, t)
 	
 	# Update Sky colors from TimeWeather
 	if env and env.environment and env.environment.sky:
@@ -402,19 +423,20 @@ func _update_underwater_effects(delta: float) -> void:
 			plankton_particles.global_position = camera.global_position
 			
 		if cam_y < water_level_y:
-			var depth = water_level_y - cam_y
-			# Volumetric fog cần thông số density nhỏ hơn sương mù thường rất nhiều
-			var target_density = clampf(0.005 + (depth * 0.002), 0.005, 0.05) 
-			
-			env.environment.volumetric_fog_enabled = true # ĐÃ SỬA
-			env.environment.volumetric_fog_albedo = Color(0.05, 0.45, 0.6) # ĐÃ SỬA
-			env.environment.volumetric_fog_density = lerpf(env.environment.volumetric_fog_density, target_density, delta * 3.0)
-			
+			# ... (dưới nước giữ nguyên) ...
 			if plankton_particles: plankton_particles.emitting = true
 		else:
-			env.environment.volumetric_fog_density = lerpf(env.environment.volumetric_fog_density, 0.0, delta * 5.0)
-			if env.environment.volumetric_fog_density < 0.0001:
-				env.environment.volumetric_fog_enabled = false
+			# === ĐÃ SỬA: Thêm sương mù mù mù nhẹ nhàng post-processing khi trên trời ===
+			# Đặt density thấp hơn, but increase it as camera gets higher
+			env.environment.volumetric_fog_enabled = true
+			env.environment.volumetric_fog_albedo = Color(0.8, 0.9, 1.0) # Màu trời mù tươi
+			
+			# Tính toán density mù dựa trên độ cao
+			var mist_density = 0.002
+			if cam_y > water_level_y + 10.0:
+				mist_density = clampf(0.002 + (cam_y - 10.0) * 0.001, 0.002, 0.01)
+				
+			env.environment.volumetric_fog_density = lerpf(env.environment.volumetric_fog_density, mist_density, delta * 3.0)
 			
 			if plankton_particles: plankton_particles.emitting = false
 
@@ -840,7 +862,7 @@ func _spawn_decorative_fish() -> void:
 			wrapper.add_child(fish_instance)
 			
 			fish_instance.position = Vector3.ZERO
-			fish_instance.rotation.y = PI/2 
+			fish_instance.rotation.y = PI
 			
 			wrapper.position = school_center + Vector3(randf_range(-3, 3), randf_range(-1, 1), randf_range(-3, 3))
 			
@@ -871,6 +893,7 @@ func _update_decorative_fish(delta: float) -> void:
 		var node: Node3D = fish["node"]
 		if not is_instance_valid(node): continue
 		
+		# 1. TƯ DUY TÌM ĐƯỜNG MỚI
 		fish["think_timer"] -= delta
 		if fish["think_timer"] <= 0.0 or node.global_position.distance_to(fish["target_pos"]) < 1.5:
 			fish["think_timer"] = randf_range(3.0, 7.0)
@@ -883,13 +906,23 @@ func _update_decorative_fish(delta: float) -> void:
 			fish["target_pos"] = node.global_position + new_dir * randf_range(5.0, 15.0)
 			
 			var current_boat_x = boat.position.x if boat != null else 0.0
-			fish["target_pos"].x = clampf(fish["target_pos"].x, current_boat_x - 45.0, current_boat_x + 45.0)
-			fish["target_pos"].y = clampf(fish["target_pos"].y, water_level_y - 25.0, water_level_y - 4.5)
-			fish["target_pos"].z = clampf(fish["target_pos"].z, -25.0, 25.0)
 			
+			# Xích cá lại, không cho bơi cách thuyền quá 45 mét
+			fish["target_pos"].x = clampf(fish["target_pos"].x, current_boat_x - 45.0, current_boat_x + 45.0)
+			
+			# Lặn không vượt quá đáy hoặc nổi lên quá mặt nước (dùng chung cho mọi loại cá)
+			fish["target_pos"].y = clampf(fish["target_pos"].y, water_level_y - 25.0, water_level_y - 2.0)
+			fish["target_pos"].z = clampf(fish["target_pos"].z, -15.0, 15.0)
+			
+		# 2. BẺ LÁI & DI CHUYỂN
 		var desired_velocity = (fish["target_pos"] - node.global_position).normalized() * fish["base_speed"]
 		fish["velocity"] = fish["velocity"].lerp(desired_velocity, delta * 1.2)
 		node.global_position += fish["velocity"] * delta
+
+		# === ĐÃ SỬA: ÉP VỊ TRÍ Y CỦA CÁ LUÔN NẰM DƯỚI NƯỚC ===
+		# Ngăn cá bay lên, ngay cả khi quán tính cố gắng đẩy chúng lên.
+		# Đặt cách mặt nước ít nhất 1.5 đơn vị để tránh Z-fighting.
+		node.global_position.y = min(node.global_position.y, water_level_y - 1.5)
 		
 		if node.global_position.y >= water_level_y - 3.5:
 			node.global_position.y = water_level_y - 3.5
@@ -1337,7 +1370,7 @@ func _setup_node_animation(node: Node, anim_speed: float = 1.0) -> void:
 			anim_player.speed_scale = anim_speed
 			
 # ==========================================
-# THÊM MỚI: HIỆU ỨNG THUYỀN DẬP DÌU THEO SÓNG
+# HIỆU ỨNG THUYỀN DẬP DÌU THEO SÓNG
 # ==========================================
 func _update_boat_waves(delta: float) -> void:
 	if boat == null:
@@ -1349,8 +1382,13 @@ func _update_boat_waves(delta: float) -> void:
 	var wave_y = sin(time_sec * 2.0 + boat.global_position.x * 0.1) * 0.3
 	wave_y += cos(time_sec * 1.5 + boat.global_position.z * 0.15) * 0.2
 	
-	# Ép thuyền chìm xuống nước
-	var boat_sink_depth = -0.6
+	# === ĐÃ SỬA: CHỈNH LẠI ĐỘ NỔI CỦA THUYỀN ===
+	# Nếu số này ÂM (-): Thuyền chìm xuống
+	# Nếu số này DƯƠNG (+): Thuyền nổi lên cao
+	# Bạn hãy tự chỉnh số 0.5 này lên xuống (ví dụ 1.0, 1.5, hoặc 0.0) 
+	# cho đến khi thấy mạn thuyền nằm vừa vặn trên mặt nước nhé!
+	var boat_sink_depth = 0.3
+	
 	var target_y = water_level_y + wave_y + boat_sink_depth
 	
 	boat.global_position.y = lerpf(boat.global_position.y, target_y, 4.0 * delta)
@@ -1440,3 +1478,26 @@ func _setup_fish_animation(node: Node, anim_speed: float = 1.0) -> void:
 			
 			anim_player.play(anim_to_play)
 			anim_player.speed_scale = anim_speed
+
+func _setup_air_effects() -> void:
+	# Tạo bụi phù du mù mờ cho post-processing fog khí mù mù
+	mist_particles = GPUParticles3D.new()
+	mist_particles.name = "MistParticles"
+	mist_particles.emitting = false # Sẽ được bật khi ở trên trời
+	add_child(mist_particles)
+	
+	# === TẠO CHẤT LIỆU MÙ MỜ PHÙ DU SIÊU MÙ MỜ ===
+	var mist_mat = ShaderMaterial.new()
+	mist_mat.shader = load("res://assets/shaders/fog_particles_sky.gdshader") # Tui sẽ đưa shader ở lượt sau
+	
+	mist_particles.process_material = mist_mat
+	
+	# === TẠO MESH MÙ MỜ PHÙ DU ===
+	var mist_mesh = QuadMesh.new()
+	mist_mesh.material = mist_mat
+	mist_mesh.size = Vector2(0.3, 0.3)
+	
+	mist_particles.draw_pass_1 = mist_mesh
+	
+	# Đặt số lượng bụi khổng lồ cho bầu trời
+	mist_particles.amount = 500
