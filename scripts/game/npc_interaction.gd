@@ -9,6 +9,8 @@ extends Area3D
 enum CustomAction { NONE, OPEN_MARKET, UPGRADE_VILLAGE_HALL }
 @export var custom_action: CustomAction = CustomAction.NONE
 
+signal action_triggered(action_id: int)
+
 var is_player_near: bool = false
 var can_interact: bool = true
 var is_dialogue_active: bool = false
@@ -77,23 +79,33 @@ func _on_dialogue_finished() -> void:
 func _try_upgrade_village_hall() -> void:
 	if GameData.is_village_hall_upgraded:
 		return
-	if GameData.money >= 50:
-		GameData.money -= 50
+	if GameData.money >= 10:
+		GameData.money -= 10
 		GameData.is_village_hall_upgraded = true
 		GameData.save_game()
 		
-		var root = get_tree().current_scene
-		if root and root.has_method("play_build_transition"):
-			root.play_build_transition()
-		elif root and root.has_method("update_village_hall"):
-			root.update_village_hall()
+		var node = self
+		var called = false
+		while node:
+			if node.has_method("play_build_transition"):
+				node.play_build_transition()
+				called = true
+				break
+			elif node.has_method("update_village_hall"):
+				node.update_village_hall()
+				called = true
+				break
+			node = node.get_parent()
+		
+		if not called:
+			print("Error: Could not find play_build_transition in ancestors.")
 	else:
 		# If not enough money, we start a quick fallback dialogue
 		DialogueManager.start_dialogue([
 			func():
 				var line = DialogueLine.new()
 				line.character_name = character_name
-				line.text = "Xin lỗi cháu, cháu chưa đủ 50 ngàn đồng để ta mua vật liệu."
+				line.text = "Xin lỗi cháu, cháu chưa đủ tiền để ta mua vật liệu."
 				return line
 		].map(func(f): return f.call()))
 

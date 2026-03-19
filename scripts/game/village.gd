@@ -33,10 +33,11 @@ func update_village_hall() -> void:
 			nha_2.show()
 			nha_2.process_mode = Node.PROCESS_MODE_INHERIT
 		if tho_moc_interaction:
-			tho_moc_interaction.dialogue_lines = [
+			var lines: Array[String] = [
 				"Thợ mộc: Nhà văn hóa mới khang trang quá cháu nhỉ!",
 				"Cháu: Dạ, bác thợ mộc mát tay quá, làng mình đẹp hẳn lên!"
 			]
+			tho_moc_interaction.dialogue_lines = lines
 			tho_moc_interaction.custom_action = 0 # CustomAction.NONE
 	else:
 		if nha_van_hoa_old:
