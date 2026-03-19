@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" uid="uid://chnrl2gwcovs" path="res://assets/sprites/village/quayThit.glb" id="5_stall"]
 [ext_resource type="PackedScene" uid="uid://cckx5hpns5ey7" path="res://assets/sprites/village/ban_ca.glb" id="6_ban_ca"]
 [ext_resource type="PackedScene" uid="uid://cquqaj3pkxq7o" path="res://assets/sprites/village/ban_thit.glb" id="7_ban_thit"]
+[ext_resource type="AudioStream" uid="uid://bd2q5gdnqsnye" path="res://assets/sound/ban_ca/dao_nay_bien_dong_ra_bien_phai_an_toan_nhe_cau_692a5dc4-c1c1-4b45-ac03-774ab45e6873.mp3" id="8_1ye51"]
 [ext_resource type="PackedScene" uid="uid://lm0ktsuwtkru" path="res://assets/sprites/village/tho_moc.glb" id="8_tho_moc"]
 [ext_resource type="PackedScene" uid="uid://dghjwvre6ka3w" path="res://assets/sprites/village/ba_ban_rau.glb" id="9_ba_ban_rau"]
 [ext_resource type="PackedScene" uid="uid://br3m0fjmmmfj5" path="res://assets/sprites/village/sap_rau.glb" id="10_sap_rau"]
@@ -246,7 +247,8 @@ transform = Transform3D(5.5, 0, 0, 0, 5.5, 0, 0, 0, 5.5, -20.566406, -0.15558243
 [node name="InteractionArea" type="Area3D" parent="Architecture/Quay2_Body/BanCa" unique_id=1984011852]
 script = ExtResource("20_npc")
 character_name = "Người bán cá"
-dialogue_lines = Array[String](["Cá tươi mới bắt về đây, mua đi mua đi", "Cẩn thận ở ngoài biển nhé, sóng hôm nay hơi to đấy."])
+dialogue_lines = Array[String](["Dạo này biển động, ra biển phải an toàn nha cậu"])
+dialogue_audio = Array[AudioStream]([ExtResource("8_1ye51")])
 custom_action = 1
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay2_Body/BanCa/InteractionArea" unique_id=120755125]
@@ -264,7 +266,8 @@ transform = Transform3D(-2.8, 0, -4.2278825e-07, 0, 2.8, 0, 4.2278825e-07, 0, -2
 [node name="InteractionArea" type="Area3D" parent="Architecture/Quay3_Body/ThoMoc" unique_id=1590227638]
 script = ExtResource("20_npc")
 character_name = "Thợ mộc"
-dialogue_lines = Array[String](["Cần sửa thuyền hay làm xây nhà gì thì cứ tìm tôi nhé.", "Gỗ lim Phú Quốc là bền nhất đấy!"])
+custom_action = 2
+dialogue_lines = Array[String](["Cháu muốn ta xây mới nhà văn hóa không? Đình làng mình cũ quá, ta cần sửa lại cho khang trang.", "Thợ mộc: Sẽ tốn khoảng 50 ngàn đồng để mua nguyên vật liệu tốt nhất đấy.", "Cháu: Dạ bác cứ tiến hành xây giúp cháu nhé, tiền để cháu lo!"])
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay3_Body/ThoMoc/InteractionArea" unique_id=1098428605]
 shape = SubResource("InteractionShape")
@@ -489,6 +492,15 @@ transform = Transform3D(3.5, 0, 0, 0, 3.5, 0, 0, 0, 3.5, -15.103489, 0, -73.1135
 [node name="DialogueBox" parent="." unique_id=270075448 instance=ExtResource("19_dialogue")]
 
 [node name="UI" type="CanvasLayer" parent="." unique_id=414508771]
+
+[node name="BlackScreen" type="ColorRect" parent="UI" unique_id=88484848]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 0)
 
 [node name="Label" type="Label" parent="UI" unique_id=1344173865]
 anchors_preset = 5

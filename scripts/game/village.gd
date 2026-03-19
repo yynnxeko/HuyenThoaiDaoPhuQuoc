@@ -11,10 +11,69 @@ signal go_to_sea
 var mouse_sensitivity = 0.002
 var move_speed = 15.0
 
+@onready var nha_van_hoa_old = $Architecture/NhaVanHoaOld_Body
+@onready var nha_2 = $Architecture/Nha2_Body
+@onready var tho_moc_interaction = $Architecture/Quay3_Body/ThoMoc/InteractionArea
+@onready var black_screen = $UI/BlackScreen
+
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	ferry_terminal.body_entered.connect(_on_ferry_terminal_entered)
 	print("[Village] Sẵn sàng ở chế độ FPP")
+	update_village_hall()
+
+func update_village_hall() -> void:
+	if not GameData: return
+	
+	if GameData.is_village_hall_upgraded:
+		if nha_van_hoa_old:
+			nha_van_hoa_old.hide()
+			nha_van_hoa_old.process_mode = Node.PROCESS_MODE_DISABLED
+		if nha_2:
+			nha_2.show()
+			nha_2.process_mode = Node.PROCESS_MODE_INHERIT
+		if tho_moc_interaction:
+			var lines: Array[String] = [
+				"Thợ mộc: Nhà văn hóa mới khang trang quá cháu nhỉ!",
+				"Cháu: Dạ, bác thợ mộc mát tay quá, làng mình đẹp hẳn lên!"
+			]
+			tho_moc_interaction.dialogue_lines = lines
+			tho_moc_interaction.custom_action = 0 # CustomAction.NONE
+	else:
+		if nha_van_hoa_old:
+			nha_van_hoa_old.show()
+			nha_van_hoa_old.process_mode = Node.PROCESS_MODE_INHERIT
+		if nha_2:
+			nha_2.hide()
+			nha_2.process_mode = Node.PROCESS_MODE_DISABLED
+
+func play_build_transition() -> void:
+	if not black_screen:
+		update_village_hall()
+		return
+		
+	# Chặn điều khiển người chơi
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	
+	var tween = create_tween()
+	# Bước 1: Màn hình tối dần (1 giây)
+	tween.tween_property(black_screen, "color:a", 1.0, 1.0)
+	
+	# Bước 2: Đổi model và chờ âm thanh xây dựng (2.5 giây)
+	tween.tween_callback(func():
+		update_village_hall()
+		# TODO: Chèn logic phát âm thanh xây dựng ở đây
+		# AudioManager.play_sfx(...) hoặc tự kéo file MP3 vào stream player
+	)
+	tween.tween_interval(2.5)
+	
+	# Bước 3: Màn hình sáng lại (1 giây)
+	tween.tween_property(black_screen, "color:a", 0.0, 1.0)
+	
+	# Kết thúc: Trả lại quyền điều khiển
+	tween.tween_callback(func():
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
