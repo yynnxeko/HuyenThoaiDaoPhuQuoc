@@ -33,6 +33,9 @@ var unlocked_zones: Array[String] = ["coastal"]
 # Current zone
 var current_zone: String = "coastal"
 
+# Village upgrades
+var is_village_hall_upgraded: bool = false
+
 # Equipment definitions
 const ROD_NAMES = ["Cần Tre", "Cần Carbon", "Cần Titan", "Cần Huyền Thoại"]
 const ROD_REEL_SPEED = [1.0, 1.3, 1.6, 2.0]
@@ -170,6 +173,7 @@ func save_game() -> void:
 		"line_level": line_level,
 		"unlocked_zones": unlocked_zones,
 		"current_zone": current_zone,
+		"is_village_hall_upgraded": is_village_hall_upgraded,
 	}
 	var file = FileAccess.open("user://save_data.json", FileAccess.WRITE)
 	if file:
@@ -199,6 +203,7 @@ func load_game() -> void:
 			for z in zones:
 				unlocked_zones.append(z)
 			current_zone = data.get("current_zone", "coastal")
+			is_village_hall_upgraded = data.get("is_village_hall_upgraded", false)
 
 
 func reset_game() -> void:
@@ -211,4 +216,5 @@ func reset_game() -> void:
 	line_level = 0
 	unlocked_zones = ["coastal"]
 	current_zone = "coastal"
+	is_village_hall_upgraded = false
 	save_game()
