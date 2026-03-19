@@ -39,8 +39,21 @@ func _start_dialogue() -> void:
 	var lines: Array = []
 	for i in range(dialogue_lines.size()):
 		var line = DialogueLine.new()
-		line.character_name = character_name
-		line.text = dialogue_lines[i]
+		var raw_text = dialogue_lines[i]
+		
+		# Parse speaker name if formatted like "Name: Text"
+		if ": " in raw_text:
+			var parts = raw_text.split(": ", true, 1)
+			if parts[0].length() <= 30: # Basic validation to check if it's actually a name
+				line.character_name = parts[0]
+				line.text = parts[1]
+			else:
+				line.character_name = character_name
+				line.text = raw_text
+		else:
+			line.character_name = character_name
+			line.text = raw_text
+			
 		if i < dialogue_audio.size():
 			line.audio = dialogue_audio[i]
 		lines.append(line)
@@ -62,7 +75,9 @@ func _open_market() -> void:
 	if market_scene:
 		var market_root = market_scene.instantiate()
 		var market_ctrl = market_root.get_child(0)
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		market_ctrl.market_closed.connect(func():
+			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 			market_root.queue_free()
 		)
 		get_tree().current_scene.add_child(market_root)
