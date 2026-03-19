@@ -301,7 +301,7 @@ func play_zone_enter() -> void:
 
 # ========= INTERNAL =========
 
-func _play_generated_sfx(stream: AudioStreamWAV, volume_scale: float = 1.0) -> void:
+func _play_generated_sfx(stream: AudioStream, volume_scale: float = 1.0) -> void:
 	for player in sfx_players:
 		if not player.playing:
 			player.stream = stream

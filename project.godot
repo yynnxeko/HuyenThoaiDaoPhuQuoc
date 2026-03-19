@@ -23,6 +23,7 @@ config/features=PackedStringArray("4.6", "Forward Plus")
 GameData="*res://scripts/autoload/game_data.gd"
 TimeWeather="*res://scripts/autoload/time_weather.gd"
 AudioManager="*res://scripts/autoload/audio_manager.gd"
+DialogueManager="*res://scripts/autoload/dialogue_manager.gd"
 
 [display]
 

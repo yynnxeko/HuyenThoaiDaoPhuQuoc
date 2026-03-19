@@ -1,7 +1,6 @@
 [gd_scene format=3 uid="uid://dbxx0ajp8bgg4"]
 
 [ext_resource type="Script" uid="uid://c2ndq2eo75f2t" path="res://scripts/game/village.gd" id="1_v"]
-[ext_resource type="Texture2D" uid="uid://bay3ak8k8pevv" path="res://assets/sprites/sky/kloppenheim_06_puresky_4k.exr" id="2_47cal"]
 [ext_resource type="PackedScene" uid="uid://c6hoy8r6ia35d" path="res://assets/sprites/village/nha1.glb" id="3_nha1"]
 [ext_resource type="PackedScene" uid="uid://r88fj2dq7p6q" path="res://assets/sprites/village/nha2.glb" id="4_nha2"]
 [ext_resource type="PackedScene" uid="uid://chnrl2gwcovs" path="res://assets/sprites/village/quayThit.glb" id="5_stall"]
@@ -10,24 +9,46 @@
 [ext_resource type="PackedScene" uid="uid://lm0ktsuwtkru" path="res://assets/sprites/village/tho_moc.glb" id="8_tho_moc"]
 [ext_resource type="PackedScene" uid="uid://dghjwvre6ka3w" path="res://assets/sprites/village/ba_ban_rau.glb" id="9_ba_ban_rau"]
 [ext_resource type="PackedScene" uid="uid://br3m0fjmmmfj5" path="res://assets/sprites/village/sap_rau.glb" id="10_sap_rau"]
+[ext_resource type="AudioStream" uid="uid://ck13ij7hhld5o" path="res://assets/sound/ba_ban_rau/rau_muong_xa_lach_tuoi_roi_day_cau_oi_005a2f68-af11-417b-8f86-79da75f543d3.mp3" id="11_te3k4"]
 [ext_resource type="PackedScene" uid="uid://cnavtqnxa5p4m" path="res://assets/sprites/village/tiem_tap_hoa.glb" id="11_tiem_tap_hoa"]
 [ext_resource type="PackedScene" uid="uid://bthlf36lbegt3" path="res://assets/sprites/village/nha_tho_xay.glb" id="12_nha_tho_xay"]
+[ext_resource type="PackedScene" uid="uid://j4i5136myixl" path="res://assets/sprites/village/bui_tre.glb" id="13_bui_tre"]
 [ext_resource type="Shader" uid="uid://g06unfg4muql" path="res://shaders/ocean_3d.gdshader" id="13_ocean"]
 [ext_resource type="PackedScene" uid="uid://hrni5qd12mr5" path="res://assets/sprites/village/ben_tau.glb" id="14_ben_tau"]
+[ext_resource type="PackedScene" uid="uid://kjotoyb1n4fr" path="res://assets/sprites/village/bui_tre01.glb" id="14_bui_tre01"]
 [ext_resource type="PackedScene" uid="uid://dis3wx7uf34vw" path="res://assets/sprites/village/cay_dua.glb" id="15_cay_dua"]
+[ext_resource type="PackedScene" uid="uid://cg2fkbbagd3iq" path="res://assets/sprites/village/rau01.glb" id="15_rau1"]
+[ext_resource type="PackedScene" uid="uid://b4j48a2xrhc08" path="res://assets/sprites/village/rau02.glb" id="16_rau2"]
 [ext_resource type="PackedScene" uid="uid://dlr4ou23n3777" path="res://assets/sprites/village/ro_ca.glb" id="16_ro_ca"]
+[ext_resource type="PackedScene" uid="uid://dvt1flw2t4s7m" path="res://assets/sprites/village/rau03.glb" id="17_rau3"]
 [ext_resource type="PackedScene" uid="uid://0yojwenahw1k" path="res://assets/sprites/village/thuyen_thung.glb" id="17_thuyen_thung"]
-[ext_resource type="Texture2D" uid="uid://lrac5t4de0ol" path="res://assets/sprites/cat/fine_sand_material_0.png" id="18_sand_albedo"]
-[ext_resource type="Texture2D" uid="uid://dll1hnq2r5xuc" path="res://assets/sprites/cat/fine_sand_material_1.png" id="19_sand_roughness"]
-[ext_resource type="Texture2D" uid="uid://cn3xvx5geohuw" path="res://assets/sprites/cat/fine_sand_material_2.png" id="20_sand_normal"]
-[ext_resource type="Shader" uid="uid://ukgimt7je4i5" path="res://shaders/sand_shore_dunes.gdshader" id="21_sand_shader"]
-[ext_resource type="Script" path="res://scripts/game/sky_day_night.gd" id="22_sky_switcher"]
+[ext_resource type="AudioStream" uid="uid://bu3pe5ybtdpvv" path="res://assets/sound/truong_lang/la_chau_cua_ong_ba_phai_khong_1b73e098-f7a0-4170-b3b2-802225ae9662.mp3" id="18_krtif"]
+[ext_resource type="PackedScene" uid="uid://brefqpsdn8xcf" path="res://assets/sprites/village/nhavanhoa_old.glb" id="18_nhavanhoa_old"]
+[ext_resource type="AudioStream" uid="uid://cnnxeqt7dxlqb" path="res://assets/sound/player/da_con_moi_ve_4ae554d7-4234-4c8a-bcef-1b64164a1b47.mp3" id="19_1ye51"]
+[ext_resource type="PackedScene" path="res://scenes/ui/dialogue_box.tscn" id="19_dialogue"]
+[ext_resource type="AudioStream" uid="uid://bivtdxlvbwoco" path="res://assets/sound/truong_lang/da_lau_lam_roi_ta_moi_gap_lai_chau_lan_cuoi_gap_916f3fab-ba39-4939-abaf-b8bcd8681da1.mp3" id="20_kttx1"]
+[ext_resource type="Script" uid="uid://cn44pmodbukwl" path="res://scripts/game/npc_interaction.gd" id="20_npc"]
+[ext_resource type="AudioStream" uid="uid://t2hk5o1gmgq2" path="res://assets/sound/truong_lang/ong_ba_de_lai_cho_chau_chiec_tau_ngoai_kia_1318b02a-3714-4f7b-8a63-70d9d9bd6ec8.mp3" id="21_rp4k2"]
+[ext_resource type="Texture2D" uid="uid://lrac5t4de0ol" path="res://assets/sprites/cat/fine_sand_material_0.png" id="21_sand_albedo"]
+[ext_resource type="AudioStream" uid="uid://dbtbx7bkw0j4d" path="res://assets/sound/player/con_thay_roi_no_cu_qua_662d31aa-3e7a-4072-a004-f6e4cb49089d.mp3" id="22_mpokr"]
+[ext_resource type="Texture2D" uid="uid://dll1hnq2r5xuc" path="res://assets/sprites/cat/fine_sand_material_1.png" id="22_sand_roughness"]
+[ext_resource type="AudioStream" uid="uid://c7osu6blha31v" path="res://assets/sound/truong_lang/lang_nay_tung_song_duoc_la_nho_bien_gio_nguoi_c0b39845-4b23-4e04-b2ac-525816bb4a90.mp3" id="23_3xa1c"]
+[ext_resource type="Texture2D" uid="uid://cn3xvx5geohuw" path="res://assets/sprites/cat/fine_sand_material_2.png" id="23_sand_normal"]
+[ext_resource type="AudioStream" uid="uid://bn33onha1isd" path="res://assets/sound/player/con_se_co_gang_phu_giup_lang_minh_lam_tiep_nhung_fc456993-3b88-40cf-bfb4-f5763634499f.mp3" id="24_dr3lv"]
+[ext_resource type="Shader" uid="uid://bg7o2ramynds0" path="res://shaders/sand_shore_dunes.gdshader" id="24_sand_shader"]
+[ext_resource type="Script" uid="uid://cw5ih24qw4boy" path="res://scripts/game/sky_day_night.gd" id="25_sky_switcher"]
+[ext_resource type="PackedScene" uid="uid://skd8m35qhp3a" path="res://assets/sprites/village/cay01.glb" id="26_cay01"]
+[ext_resource type="PackedScene" uid="uid://ccp7fmhc8hs7r" path="res://assets/sprites/village/cay02.glb" id="27_cay02"]
+[ext_resource type="PackedScene" uid="uid://bjjuwljt1tvd0" path="res://assets/sprites/village/nha_truong_lang.glb" id="28_nha_truong_lang"]
+[ext_resource type="PackedScene" uid="uid://danjipv0ap3kr" path="res://assets/sprites/village/truong_lang.glb" id="29_truong_lang"]
+[ext_resource type="PackedScene" uid="uid://cem2042nd2juk" path="res://assets/sprites/village/vuon_rau03.glb" id="30_vuon_rau03"]
 
-[sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_rswfu"]
-panorama = ExtResource("2_47cal")
+[sub_resource type="ProceduralSkyMaterial" id="SkyMat_v"]
+sky_top_color = Color(0.2, 0.5, 0.8, 1)
+sky_horizon_color = Color(0.65, 0.7, 0.8, 1)
 
 [sub_resource type="Sky" id="Sky_v"]
-sky_material = SubResource("PanoramaSkyMaterial_rswfu")
+sky_material = SubResource("SkyMat_v")
 
 [sub_resource type="Environment" id="Env_v"]
 background_mode = 2
@@ -37,11 +58,45 @@ glow_enabled = true
 glow_intensity = 0.8
 glow_bloom = 0.2
 
-[sub_resource type="BoxShape3D" id="NhaShape"]
+[sub_resource type="BoxShape3D" id="NhaShape1"]
 size = Vector3(9.258733, 6.8434277, 7.9064693)
 
-[sub_resource type="BoxShape3D" id="QuayShape"]
-size = Vector3(2.4631844, 5, 1.0122299)
+[sub_resource type="BoxShape3D" id="NhaShape2"]
+size = Vector3(9.258733, 6.8434277, 7.9064693)
+
+[sub_resource type="CylinderShape3D" id="InteractionShape"]
+radius = 0.93408203
+
+[sub_resource type="BoxShape3D" id="QuayShape1"]
+size = Vector3(4.5749025, 5, 2.3550472)
+
+[sub_resource type="BoxShape3D" id="QuayShape2"]
+size = Vector3(8.575025, 4.293457, 2.231207)
+
+[sub_resource type="BoxShape3D" id="QuayShape3"]
+size = Vector3(4.3906984, 5, 1.4903679)
+
+[sub_resource type="BoxShape3D" id="NhaShape3"]
+size = Vector3(9.258733, 6.8434277, 7.9064693)
+
+[sub_resource type="BoxShape3D" id="NhaShape4"]
+size = Vector3(9.258733, 6.8434277, 7.9064693)
+
+[sub_resource type="BoxShape3D" id="NhaShape5"]
+size = Vector3(9.258733, 6.8434277, 14.624811)
+
+[sub_resource type="BoxShape3D" id="NhaTruongLangShape"]
+size = Vector3(5.5579834, 7, 4.835022)
+
+[sub_resource type="CapsuleShape3D" id="PlayerShape"]
+radius = 0.4
+height = 1.8
+
+[sub_resource type="BoxShape3D" id="CayShape"]
+size = Vector3(1.5, 5, 1.5)
+
+[sub_resource type="BoxShape3D" id="VuonRauShape"]
+size = Vector3(5.6141357, 1.5, 5.079834)
 
 [sub_resource type="StandardMaterial3D" id="GroundMat"]
 albedo_color = Color(0.2, 0.4, 0.2, 1)
@@ -50,10 +105,6 @@ albedo_color = Color(0.2, 0.4, 0.2, 1)
 size = Vector2(100, 160)
 
 [sub_resource type="WorldBoundaryShape3D" id="GroundShape"]
-
-[sub_resource type="CapsuleShape3D" id="PlayerShape"]
-radius = 0.4
-height = 1.8
 
 [sub_resource type="StandardMaterial3D" id="TerminalMat"]
 albedo_color = Color(0.1, 0.4, 1, 1)
@@ -69,10 +120,10 @@ size = Vector3(8, 3, 8)
 
 [sub_resource type="ShaderMaterial" id="SandDunesMat"]
 render_priority = 0
-shader = ExtResource("21_sand_shader")
-shader_parameter/albedo_tex = ExtResource("18_sand_albedo")
-shader_parameter/normal_tex = ExtResource("20_sand_normal")
-shader_parameter/roughness_tex = ExtResource("19_sand_roughness")
+shader = ExtResource("24_sand_shader")
+shader_parameter/albedo_tex = ExtResource("21_sand_albedo")
+shader_parameter/normal_tex = ExtResource("23_sand_normal")
+shader_parameter/roughness_tex = ExtResource("22_sand_roughness")
 shader_parameter/uv_scale = 12.0
 shader_parameter/dune_amplitude = 0.22
 shader_parameter/dune_frequency = 0.06
@@ -135,9 +186,9 @@ script = ExtResource("1_v")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1230044613]
 environment = SubResource("Env_v")
-script = ExtResource("22_sky_switcher")
-sun_light_path = NodePath("../SunLight")
+script = ExtResource("25_sky_switcher")
 switch_sky = true
+sun_light_path = NodePath("../SunLight")
 
 [node name="SunLight" type="DirectionalLight3D" parent="." unique_id=288309497]
 transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 10, 0)
@@ -156,7 +207,7 @@ transform = Transform3D(17, 0, 0, 0, 17, 0, 0, 0, 17, 5.4759827, 0, 10.153288)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Nha1_Body" unique_id=1118896593]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.4385567, 4.078286, 10.838982)
-shape = SubResource("NhaShape")
+shape = SubResource("NhaShape1")
 
 [node name="Nha2_Body" type="StaticBody3D" parent="Architecture" unique_id=1124060606]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 35, 0, -30)
@@ -166,23 +217,40 @@ transform = Transform3D(16, 0, 0, 0, 16, 0, 0, 0, 16, 0, 0, 10.186314)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Nha2_Body" unique_id=680176006]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.21512222, 3.75, 10.328514)
-shape = SubResource("NhaShape")
+shape = SubResource("NhaShape2")
 
 [node name="Quay1_Body" type="StaticBody3D" parent="Architecture" unique_id=163368826]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -12, 0, -10)
 
 [node name="BanThit" parent="Architecture/Quay1_Body" unique_id=1111111 instance=ExtResource("7_ban_thit")]
-transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, 15.010971, 0, 0.9374161)
+transform = Transform3D(2.5, 0, 0, 0, 2.5, 0, 0, 0, 2.5, 15.010971, 0, 1.5057659)
+
+[node name="InteractionArea" type="Area3D" parent="Architecture/Quay1_Body/BanThit" unique_id=1608404785]
+script = ExtResource("20_npc")
+character_name = "Người bán thịt"
+dialogue_lines = Array[String](["Chào cậu, hôm nay tôi có thịt heo đảo rất tươi!", "Cậu muốn mua một ít không?"])
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay1_Body/BanThit/InteractionArea" unique_id=1459088948]
+shape = SubResource("InteractionShape")
 
 [node name="Quay2_Body" type="StaticBody3D" parent="Architecture" unique_id=799913635]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 12, 0, -10)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay2_Body" unique_id=70726954]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20.566887, 1.75, 8.444886)
-shape = SubResource("QuayShape")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20.53969, 1.75, 8.368803)
+shape = SubResource("QuayShape1")
 
 [node name="BanCa" parent="Architecture/Quay2_Body" unique_id=2222222 instance=ExtResource("6_ban_ca")]
-transform = Transform3D(5, 0, 0, 0, 5, 0, 0, 0, 5, -20.566406, -0.15558243, 8.453617)
+transform = Transform3D(5.5, 0, 0, 0, 5.5, 0, 0, 0, 5.5, -20.566406, -0.15558243, 8.453617)
+
+[node name="InteractionArea" type="Area3D" parent="Architecture/Quay2_Body/BanCa" unique_id=1984011852]
+script = ExtResource("20_npc")
+character_name = "Người bán cá"
+dialogue_lines = Array[String](["Cá tươi mới bắt về đây, mua đi mua đi", "Cẩn thận ở ngoài biển nhé, sóng hôm nay hơi to đấy."])
+custom_action = 1
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay2_Body/BanCa/InteractionArea" unique_id=120755125]
+shape = SubResource("InteractionShape")
 
 [node name="Quay3_Body" type="StaticBody3D" parent="Architecture" unique_id=521863210]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -12, 0, -25)
@@ -191,24 +259,41 @@ transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -12, 0, -25)
 transform = Transform3D(0.6, 0, 0, 0, 0.6, 0, 0, 0, 0.6, 0, 0, 0)
 
 [node name="ThoMoc" parent="Architecture/Quay3_Body" unique_id=3333333 instance=ExtResource("8_tho_moc")]
-transform = Transform3D(-1.5, 0, -1.31134e-07, 0, 1.5, 0, 1.31134e-07, 0, -1.5, -8.193827, 0.16039324, 30.976831)
+transform = Transform3D(-2.8, 0, -4.2278825e-07, 0, 2.8, 0, 4.2278825e-07, 0, -2.8, -8.707314, 0.16039324, 28.697742)
+
+[node name="InteractionArea" type="Area3D" parent="Architecture/Quay3_Body/ThoMoc" unique_id=1590227638]
+script = ExtResource("20_npc")
+character_name = "Thợ mộc"
+dialogue_lines = Array[String](["Cần sửa thuyền hay làm xây nhà gì thì cứ tìm tôi nhé.", "Gỗ lim Phú Quốc là bền nhất đấy!"])
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay3_Body/ThoMoc/InteractionArea" unique_id=1098428605]
+shape = SubResource("InteractionShape")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay3_Body" unique_id=2139064802]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.08207703, 1.75, 0.12197113)
-shape = SubResource("QuayShape")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.08411598, 2.1032715, 0.07058239)
+shape = SubResource("QuayShape2")
 
 [node name="Quay4_Body" type="StaticBody3D" parent="Architecture" unique_id=2096218265]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 12, 0, -25)
 
 [node name="SapRau1" parent="Architecture/Quay4_Body" unique_id=1259212530 instance=ExtResource("10_sap_rau")]
-transform = Transform3D(5, 0, 0, 0, 5, 0, 0, 0, 5, 0, 0, 8.681564)
+transform = Transform3D(5.2, 0, 0, 0, 5.2, 0, 0, 0, 5.2, 0, 0, 8.681564)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay4_Body" unique_id=1613576960]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 8.610493)
-shape = SubResource("QuayShape")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5243778, 1.75, 8.849562)
+shape = SubResource("QuayShape3")
 
 [node name="BaBanRau" parent="Architecture/Quay4_Body" unique_id=4444444 instance=ExtResource("9_ba_ban_rau")]
-transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 1.7494488, 0, 9.266053)
+transform = Transform3D(2.5, 0, 0, 0, 2.5, 0, 0, 0, 2.5, 2.295248, 0, 9.266053)
+
+[node name="InteractionArea" type="Area3D" parent="Architecture/Quay4_Body/BaBanRau" unique_id=1973724934]
+script = ExtResource("20_npc")
+character_name = "Bà bán rau"
+dialogue_lines = Array[String](["Rau muống, xà lách... tươi rói đây cậu ơi!", "Mua ủng hộ bà đi, rau sạch bà tự trồng đấy."])
+dialogue_audio = Array[AudioStream]([ExtResource("11_te3k4")])
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay4_Body/BaBanRau/InteractionArea" unique_id=1978493221]
+shape = SubResource("InteractionShape")
 
 [node name="TiemTapHoa_Body" type="StaticBody3D" parent="Architecture" unique_id=5555555]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -35, 0, 0)
@@ -217,8 +302,8 @@ transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -35, 0, 0)
 transform = Transform3D(13, 0, 0, 0, 13, 0, 0, 0, 13, 11.13007, 0, 10.015415)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/TiemTapHoa_Body" unique_id=7777777]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.05, 3.68, -0.9)
-shape = SubResource("NhaShape")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.947547, 3.68, 9.670362)
+shape = SubResource("NhaShape3")
 
 [node name="NhaThoXay_Body" type="StaticBody3D" parent="Architecture" unique_id=8888888]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 35, 0, 0)
@@ -227,14 +312,107 @@ transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 35, 0, 0)
 transform = Transform3D(12, 0, 0, 0, 12, 0, 0, 0, 12, -11.746746, 0, 10.417721)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/NhaThoXay_Body" unique_id=1010101]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11.774695, 3.75, 9.687817)
-shape = SubResource("NhaShape")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11.710987, 3.75, 10.24379)
+shape = SubResource("NhaShape4")
+
+[node name="NhaVanHoaOld_Body" type="StaticBody3D" parent="Architecture" unique_id=4040404]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -50, 0, -60)
+
+[node name="NhaVanHoaOld" parent="Architecture/NhaVanHoaOld_Body" unique_id=4141414 instance=ExtResource("18_nhavanhoa_old")]
+transform = Transform3D(-6.556708e-07, 0, -15, 0, 15, 0, 15, 0, -6.556708e-07, 75.5252, 0, 13.540688)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/NhaVanHoaOld_Body" unique_id=4242424]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 75.37032, 3.68, 13.253052)
+shape = SubResource("NhaShape5")
+
+[node name="NhaTruongLang_Body" type="StaticBody3D" parent="Architecture" unique_id=505050601]
+transform = Transform3D(-7.430936e-08, 0, -1.7, 0, 1.7, 0, 1.7, 0, -7.430936e-08, 24.446392, 0, 6.4809036)
+
+[node name="NhaTruongLang" parent="Architecture/NhaTruongLang_Body" unique_id=505050602 instance=ExtResource("28_nha_truong_lang")]
+transform = Transform3D(7.0000005, 0, 0, 0, 7.0000005, 0, 0, 0, 7.0000005, -2.6394696, 0, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/NhaTruongLang_Body" unique_id=505050603]
+transform = Transform3D(1.0000002, 0, 3.5527137e-15, 0, 1.0000002, 0, -3.5527137e-15, 0, 1.0000002, -0.22540164, 4.000001, 0.4038992)
+shape = SubResource("NhaTruongLangShape")
+
+[node name="TruongLang_Body" type="StaticBody3D" parent="Architecture" unique_id=505050701]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.248257, 0, 7.2029057)
+
+[node name="TruongLang" parent="Architecture/TruongLang_Body" unique_id=505050702 instance=ExtResource("29_truong_lang")]
+transform = Transform3D(-0.47273862, 0, -2.4548967, 0, 2.5, 0, 2.4548967, 0, -0.47273862, 1.5872746, 0, -8.687815)
+
+[node name="InteractionArea" type="Area3D" parent="Architecture/TruongLang_Body/TruongLang" unique_id=505050703]
+script = ExtResource("20_npc")
+character_name = "Trưởng làng"
+dialogue_lines = Array[String](["... Là cháu của ông Ba phải không?", "Người chơi : Dạ... con mới về.", "Đã lâu lắm rồi ta mới gặp lại cháu, lần cuối gặp nhau cháu và ông Ba còn đi biển chung với nhau vậy mà ...", "Ông Ba để lại cho cháu chiếc tàu ngoài kia.", "Người chơi : Con thấy rồi... nó cũ quá.", "Làng này từng sống được là nhờ biển. Giờ người trẻ đi hết rồi không còn ai đủ sức bám biển", "Người chơi : Con sẽ cố gắng phụ giúp làng mình, làm tiếp những gì ông con còn bỏ lỡ"])
+dialogue_audio = Array[AudioStream]([ExtResource("18_krtif"), ExtResource("19_1ye51"), ExtResource("20_kttx1"), ExtResource("21_rp4k2"), ExtResource("22_mpokr"), ExtResource("23_3xa1c"), ExtResource("24_dr3lv")])
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/TruongLang_Body/TruongLang/InteractionArea" unique_id=505050704]
+transform = Transform3D(0.9999999, 0, 2.0861626e-07, 0, 0.99999976, 0, -2.0861626e-07, 0, 0.9999999, 0, 0, 0)
+shape = SubResource("InteractionShape")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/TruongLang_Body" unique_id=505050705]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.8976021, 1, -8.571966)
+shape = SubResource("PlayerShape")
+
+[node name="Nature" type="Node3D" parent="." unique_id=2020202]
+
+[node name="BuiTre1" parent="Nature" unique_id=2121212 instance=ExtResource("13_bui_tre")]
+transform = Transform3D(8, 0, 0, 0, 8, 0, 0, 0, 8, -36.91536, 0, -46.38085)
+
+[node name="BuiTre2" parent="Nature" unique_id=2222223 instance=ExtResource("14_bui_tre01")]
+transform = Transform3D(9, 0, 0, 0, 9, 0, 0, 0, 9, -38.422733, 0, -47.48697)
+
+[node name="BuiTre3" parent="Nature" unique_id=2323232 instance=ExtResource("13_bui_tre")]
+transform = Transform3D(9, 0, 0, 0, 9, 0, 0, 0, 9, -20.462925, 0, -3.4399137)
+
+[node name="Cay01_Body" type="StaticBody3D" parent="Nature" unique_id=505050501]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -25, 0, -20)
+
+[node name="Cay01" parent="Nature/Cay01_Body" unique_id=505050502 instance=ExtResource("26_cay01")]
+transform = Transform3D(7, 0, 0, 0, 7, 0, 0, 0, 7, 1.0258217, 0, -40.181786)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Nature/Cay01_Body" unique_id=505050503]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
+shape = SubResource("CayShape")
+
+[node name="Cay02_Body" type="StaticBody3D" parent="Nature" unique_id=505050504]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -30, 0, -20)
+
+[node name="Cay02" parent="Nature/Cay02_Body" unique_id=505050505 instance=ExtResource("27_cay02")]
+transform = Transform3D(7, 0, 0, 0, 7, 0, 0, 0, 7, 44.811405, 0, -39.009495)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Nature/Cay02_Body" unique_id=505050506]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
+shape = SubResource("CayShape")
+
+[node name="VegetableGarden" type="Node3D" parent="." unique_id=3030303]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -30, 0, -45)
+
+[node name="Rau1" parent="VegetableGarden" unique_id=3131313 instance=ExtResource("15_rau1")]
+transform = Transform3D(2.5, 0, 0, 0, 2.5, 0, 0, 0, 2.5, 7.350952, 0, 0)
+
+[node name="Rau2" parent="VegetableGarden" unique_id=3232323 instance=ExtResource("16_rau2")]
+transform = Transform3D(2.5, 0, 0, 0, 2.5, 0, 0, 0, 2.5, 10.02305, 0, -2.4589233)
+
+[node name="Rau3" parent="VegetableGarden" unique_id=3333334 instance=ExtResource("17_rau3")]
+transform = Transform3D(2.5, 0, 0, 0, 2.5, 0, 0, 0, 2.5, 10, 0, 0)
+
+[node name="VuonRau03_Body" type="StaticBody3D" parent="VegetableGarden" unique_id=505050801]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0, 0)
+
+[node name="VuonRau03" parent="VegetableGarden/VuonRau03_Body" unique_id=505050802 instance=ExtResource("30_vuon_rau03")]
+transform = Transform3D(-1.5298986e-07, 0, 3.5, 0, 3.5, 0, -3.5, 0, -1.5298986e-07, 11.37735, 0, -2.8970222)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="VegetableGarden/VuonRau03_Body" unique_id=505050803]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.610279, 0.5, -1.7474365)
+shape = SubResource("VuonRauShape")
 
 [node name="Ground" type="StaticBody3D" parent="." unique_id=757101834]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 20)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Ground" unique_id=857156854]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0032129288, 0.019395828, 0.00034332275)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.007164955, 0.052661896, 0.0026111603)
 material_override = SubResource("GroundMat")
 mesh = SubResource("GroundMesh")
 
@@ -285,13 +463,13 @@ mesh = SubResource("OceanMesh")
 transform = Transform3D(-1.9920897, -0.13930048, -11.325289, -0.8021994, 11.471987, 0, 11.297702, 0.79001224, -1.9969542, 0, 0.20406532, -84.64435)
 
 [node name="CayDua1" parent="CoastalAssets" unique_id=888888888 instance=ExtResource("15_cay_dua")]
-transform = Transform3D(5, 0, 0, 0, 5, 0, 0, 0, 5, 10, 0, -62.062065)
+transform = Transform3D(7, 0, 0, 0, 7, 0, 0, 0, 7, 10, 0, -62.062065)
 
 [node name="CayDua2" parent="CoastalAssets" unique_id=999999999 instance=ExtResource("15_cay_dua")]
 transform = Transform3D(7, 0, 0, 0, 7, 0, 0, 0, 7, -18, -0.03789854, -62.777218)
 
 [node name="CayDua3" parent="CoastalAssets" unique_id=101010101 instance=ExtResource("15_cay_dua")]
-transform = Transform3D(8, 0, 0, 0, 8, 0, 0, 0, 8, -16.191896, -0.03274846, -61.337917)
+transform = Transform3D(9, 0, 0, 0, 9, 0, 0, 0, 9, -16.191896, -0.03274846, -61.337917)
 
 [node name="RoCa1" parent="CoastalAssets" unique_id=111111111 instance=ExtResource("16_ro_ca")]
 transform = Transform3D(1, 0, 0, 0, 0.94945836, -0.31389302, 0, 0.31389302, 0.94945836, -13.372362, -0.031641394, -74.36098)
@@ -307,6 +485,8 @@ transform = Transform3D(3.5, 0, 0, 0, 3.5, 0, 0, 0, 3.5, -4.0393786, 0.2006464, 
 
 [node name="ThuyenThung2" parent="CoastalAssets" unique_id=151515151 instance=ExtResource("17_thuyen_thung")]
 transform = Transform3D(3.5, 0, 0, 0, 3.5, 0, 0, 0, 3.5, -15.103489, 0, -73.113556)
+
+[node name="DialogueBox" parent="." unique_id=270075448 instance=ExtResource("19_dialogue")]
 
 [node name="UI" type="CanvasLayer" parent="." unique_id=414508771]
 
