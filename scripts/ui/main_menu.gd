@@ -26,6 +26,9 @@ func _ready() -> void:
 	if ui_root:
 		ui_root.mouse_filter = Control.MOUSE_FILTER_PASS
 	print("[Menu] ready | ui_root=", ui_root, " gui_disable_input=", get_viewport().gui_disable_input, " mouse_mode=", Input.get_mouse_mode())
+	
+	if AudioManager != null and AudioManager.has_method("play_music"):
+		AudioManager.play_music(load("res://assets/sound/nhac_nen/nhacnen.mp3"))
 
 	if btn_start == null or btn_continue == null or btn_quit == null:
 		push_error("Main menu buttons not found in scene tree. Check node paths in main_menu.gd.")

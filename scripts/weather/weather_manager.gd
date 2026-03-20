@@ -63,7 +63,7 @@ func set_weather(type: Weather) -> void:
 			_tween_environment(Color(0.5, 0.7, 1.0), 1.0, 0.0) # Light blue, full energy, no fog
 			if rain_particles: rain_particles.emitting = false
 			_tween_rain_amount(0.0)
-			if rain_sound: _fade_sound(rain_sound, 0)
+			if rain_sound: _fade_sound(rain_sound, -80)
 			if wind_sound: _fade_sound(wind_sound, -10)
 		Weather.RAIN:
 			target_wind_strength = 2.0

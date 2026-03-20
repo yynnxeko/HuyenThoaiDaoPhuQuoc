@@ -4,6 +4,7 @@ extends Node
 ## Generates all sounds programmatically (no audio files needed)
 
 var music_player: AudioStreamPlayer
+var fishing_bgm_player: AudioStreamPlayer
 var sfx_players: Array[AudioStreamPlayer] = []
 const MAX_SFX_PLAYERS: int = 12
 
@@ -18,12 +19,19 @@ var ambient_time: float = 0.0
 
 # Current music state
 var current_music: String = ""
+var music_playback_position: float = 0.0
 
 
 func _ready() -> void:
 	music_player = AudioStreamPlayer.new()
 	music_player.bus = "Master"
 	add_child(music_player)
+	
+	fishing_bgm_player = AudioStreamPlayer.new()
+	fishing_bgm_player.bus = "Master"
+	fishing_bgm_player.stream = load("res://assets/sound/nhac_nen/tieng_ca_vung_vay_trong_chau_nuoc-www_tiengdong_com.mp3")
+	fishing_bgm_player.finished.connect(fishing_bgm_player.play)
+	add_child(fishing_bgm_player)
 	
 	for i in MAX_SFX_PLAYERS:
 		var player = AudioStreamPlayer.new()
@@ -42,6 +50,20 @@ func _ready() -> void:
 	ambient_player.play()
 	ambient_playback = ambient_player.get_stream_playback()
 	ambient_player.volume_db = linear_to_db(0.12)
+	
+	if DialogueManager != null:
+		DialogueManager.dialogue_started.connect(_on_dialogue_started)
+		DialogueManager.dialogue_finished.connect(_on_dialogue_finished)
+
+func _on_dialogue_started() -> void:
+	if music_player.playing:
+		music_playback_position = music_player.get_playback_position()
+		music_player.stop()
+
+func _on_dialogue_finished() -> void:
+	if music_player.stream != null:
+		music_player.play(music_playback_position)
+		music_playback_position = 0.0
 
 
 func _process(delta: float) -> void:
@@ -316,6 +338,12 @@ func _play_generated_sfx(stream: AudioStream, volume_scale: float = 1.0) -> void
 func play_music(stream: AudioStream, _fade_in: float = 1.0) -> void:
 	if stream == null:
 		return
+	if music_player.stream != null and music_player.stream.resource_path == stream.resource_path and music_player.playing:
+		return
+		
+	if fishing_bgm_player != null and fishing_bgm_player.playing:
+		stop_fishing_bgm()
+		
 	music_player.stream = stream
 	music_player.volume_db = linear_to_db(music_volume)
 	music_player.play()
@@ -338,3 +366,18 @@ func set_music_volume(vol: float) -> void:
 
 func set_sfx_volume(vol: float) -> void:
 	sfx_volume = clampf(vol, 0.0, 1.0)
+
+func start_fishing_bgm() -> void:
+	if music_player.playing:
+		music_playback_position = music_player.get_playback_position()
+		music_player.stop()
+	fishing_bgm_player.volume_db = linear_to_db(sfx_volume * 0.8)
+	if not fishing_bgm_player.playing:
+		fishing_bgm_player.play()
+
+func stop_fishing_bgm() -> void:
+	if fishing_bgm_player.playing:
+		fishing_bgm_player.stop()
+	if music_player.stream != null:
+		music_player.play(music_playback_position)
+		music_playback_position = 0.0
