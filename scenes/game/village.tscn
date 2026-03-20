@@ -2,7 +2,6 @@
 
 [ext_resource type="Script" uid="uid://c2ndq2eo75f2t" path="res://scripts/game/village.gd" id="1_v"]
 [ext_resource type="Texture2D" uid="uid://bay3ak8k8pevv" path="res://assets/sprites/sky/kloppenheim_06_puresky_4k.exr" id="2_47cal"]
-[ext_resource type="PackedScene" uid="uid://bwat1qs1fxtlg" path="res://assets/sprites/village/Cloud.glb" id="2_cloud"]
 [ext_resource type="PackedScene" uid="uid://c6hoy8r6ia35d" path="res://assets/sprites/village/nha1.glb" id="3_nha1"]
 [ext_resource type="PackedScene" uid="uid://r88fj2dq7p6q" path="res://assets/sprites/village/nha2.glb" id="4_nha2"]
 [ext_resource type="PackedScene" uid="uid://chnrl2gwcovs" path="res://assets/sprites/village/quayThit.glb" id="5_stall"]
@@ -21,6 +20,9 @@
 [ext_resource type="Texture2D" uid="uid://lrac5t4de0ol" path="res://assets/sprites/cat/fine_sand_material_0.png" id="18_sand_albedo"]
 [ext_resource type="Texture2D" uid="uid://dll1hnq2r5xuc" path="res://assets/sprites/cat/fine_sand_material_1.png" id="19_sand_roughness"]
 [ext_resource type="Texture2D" uid="uid://cn3xvx5geohuw" path="res://assets/sprites/cat/fine_sand_material_2.png" id="20_sand_normal"]
+[ext_resource type="Texture2D" uid="uid://dewsoqotdhmyn" path="res://assets/sprites/grass/grass_with_dirt_patches_material_0.png" id="21_grass_albedo"]
+[ext_resource type="Texture2D" uid="uid://byc8sunloxgdg" path="res://assets/sprites/grass/grass_with_dirt_patches_material_1.png" id="22_grass_roughness"]
+[ext_resource type="Texture2D" uid="uid://bbjusmlgurse" path="res://assets/sprites/grass/grass_with_dirt_patches_material_2.png" id="23_grass_normal"]
 
 [sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_rswfu"]
 panorama = ExtResource("2_47cal")
@@ -44,7 +46,12 @@ size = Vector3(9.258733, 6.8434277, 7.9064693)
 size = Vector3(2.4631844, 5, 1.0122299)
 
 [sub_resource type="StandardMaterial3D" id="GroundMat"]
-albedo_color = Color(0.2, 0.4, 0.2, 1)
+albedo_texture = ExtResource("21_grass_albedo")
+roughness_texture = ExtResource("22_grass_roughness")
+normal_enabled = true
+normal_texture = ExtResource("23_grass_normal")
+uv1_scale = Vector3(24, 24, 24)
+texture_filter = 5
 
 [sub_resource type="PlaneMesh" id="GroundMesh"]
 size = Vector2(100, 160)
@@ -201,15 +208,6 @@ transform = Transform3D(12, 0, 0, 0, 12, 0, 0, 0, 12, -11.746746, 0, 10.417721)
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/NhaThoXay_Body" unique_id=1010101]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11.774695, 3.75, 9.687817)
 shape = SubResource("NhaShape")
-
-[node name="Clouds" type="Node3D" parent="." unique_id=977298122]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 80, 0)
-
-[node name="Cloud1" parent="Clouds" unique_id=1058977365 instance=ExtResource("2_cloud")]
-transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 40, 0, 60)
-
-[node name="Cloud2" parent="Clouds" unique_id=1140440855 instance=ExtResource("2_cloud")]
-transform = Transform3D(-10, 0, 8.74228e-07, 0, 10, 0, -8.74228e-07, 0, -10, -80, 20, -40)
 
 [node name="Ground" type="StaticBody3D" parent="." unique_id=757101834]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 20)
