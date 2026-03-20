@@ -517,6 +517,7 @@ func _process_bite(delta: float) -> void:
 			_launch_boss_encounter()
 			return
 		state = FishingState.MINIGAME
+		AudioManager.start_fishing_bgm()
 		tension = 0.5
 		catch_progress = 0.0
 		_setup_minigame_difficulty()
@@ -607,6 +608,7 @@ func _process_minigame(delta: float) -> void:
 		var break_chance = clampf(fish_strength / (durability * 8.0), 0.1, 0.9)
 		if randf() < break_chance:
 			_spawn_splash(bobber_pos, 12)
+			AudioManager.stop_fishing_bgm()
 			AudioManager.play_line_snap()
 			state = FishingState.ESCAPED
 			wait_timer = 0.0 # SỬA LỖI: Đứt dây câu
@@ -620,6 +622,7 @@ func _process_minigame(delta: float) -> void:
 		if bite_fish:
 			var rarity_col = FishDatabase.get_rarity_color(bite_fish.rarity)
 			_spawn_sparkle(bobber_pos, rarity_col, 12)
+			AudioManager.stop_fishing_bgm()
 			if bite_fish.rarity == "legendary":
 				AudioManager.play_catch_legendary()
 			else:
@@ -630,6 +633,7 @@ func _process_minigame(delta: float) -> void:
 	if tension <= 0.02:
 		catch_progress -= delta * 0.5
 		if catch_progress <= 0.0:
+			AudioManager.stop_fishing_bgm()
 			AudioManager.play_fish_escape()
 			state = FishingState.ESCAPED
 			wait_timer = 0.0 # SỬA LỖI: Tuột mất cá do nhả dây

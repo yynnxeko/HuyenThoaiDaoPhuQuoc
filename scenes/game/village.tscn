@@ -13,11 +13,14 @@
 [ext_resource type="PackedScene" uid="uid://br3m0fjmmmfj5" path="res://assets/sprites/village/sap_rau.glb" id="10_sap_rau"]
 [ext_resource type="AudioStream" uid="uid://ck13ij7hhld5o" path="res://assets/sound/ba_ban_rau/rau_muong_xa_lach_tuoi_roi_day_cau_oi_005a2f68-af11-417b-8f86-79da75f543d3.mp3" id="11_te3k4"]
 [ext_resource type="PackedScene" uid="uid://cnavtqnxa5p4m" path="res://assets/sprites/village/tiem_tap_hoa.glb" id="11_tiem_tap_hoa"]
+[ext_resource type="AudioStream" uid="uid://bp5smfclgui4r" path="res://assets/sound/tho_moc/thomoc1.mp3" id="12_3xa1c"]
 [ext_resource type="PackedScene" uid="uid://bthlf36lbegt3" path="res://assets/sprites/village/nha_tho_xay.glb" id="12_nha_tho_xay"]
 [ext_resource type="PackedScene" uid="uid://j4i5136myixl" path="res://assets/sprites/village/bui_tre.glb" id="13_bui_tre"]
+[ext_resource type="AudioStream" uid="uid://7ygd4q38dqch" path="res://assets/sound/tho_moc/thomoc2.mp3" id="13_dr3lv"]
 [ext_resource type="Shader" uid="uid://g06unfg4muql" path="res://shaders/ocean_3d.gdshader" id="13_ocean"]
 [ext_resource type="PackedScene" uid="uid://hrni5qd12mr5" path="res://assets/sprites/village/ben_tau.glb" id="14_ben_tau"]
 [ext_resource type="PackedScene" uid="uid://kjotoyb1n4fr" path="res://assets/sprites/village/bui_tre01.glb" id="14_bui_tre01"]
+[ext_resource type="AudioStream" uid="uid://cwxvrn6v8ykny" path="res://assets/sound/player/da_bac_cu_tien_hanh_xay_giup_chau_nhe_tien_de_34b894ad-53cb-4865-834c-acbc7b6a0b05.mp3" id="14_itimw"]
 [ext_resource type="PackedScene" uid="uid://dis3wx7uf34vw" path="res://assets/sprites/village/cay_dua.glb" id="15_cay_dua"]
 [ext_resource type="PackedScene" uid="uid://cg2fkbbagd3iq" path="res://assets/sprites/village/rau01.glb" id="15_rau1"]
 [ext_resource type="PackedScene" uid="uid://b4j48a2xrhc08" path="res://assets/sprites/village/rau02.glb" id="16_rau2"]
@@ -29,7 +32,7 @@
 [ext_resource type="AudioStream" uid="uid://cnnxeqt7dxlqb" path="res://assets/sound/player/da_con_moi_ve_4ae554d7-4234-4c8a-bcef-1b64164a1b47.mp3" id="19_1ye51"]
 [ext_resource type="PackedScene" path="res://scenes/ui/dialogue_box.tscn" id="19_dialogue"]
 [ext_resource type="AudioStream" uid="uid://bivtdxlvbwoco" path="res://assets/sound/truong_lang/da_lau_lam_roi_ta_moi_gap_lai_chau_lan_cuoi_gap_916f3fab-ba39-4939-abaf-b8bcd8681da1.mp3" id="20_kttx1"]
-[ext_resource type="Script" uid="uid://cllk1lw7o6xpa" path="res://scripts/game/npc_interaction.gd" id="20_npc"]
+[ext_resource type="Script" uid="uid://cn44pmodbukwl" path="res://scripts/game/npc_interaction.gd" id="20_npc"]
 [ext_resource type="AudioStream" uid="uid://t2hk5o1gmgq2" path="res://assets/sound/truong_lang/ong_ba_de_lai_cho_chau_chiec_tau_ngoai_kia_1318b02a-3714-4f7b-8a63-70d9d9bd6ec8.mp3" id="21_rp4k2"]
 [ext_resource type="Texture2D" uid="uid://lrac5t4de0ol" path="res://assets/sprites/cat/fine_sand_material_0.png" id="21_sand_albedo"]
 [ext_resource type="AudioStream" uid="uid://dbtbx7bkw0j4d" path="res://assets/sound/player/con_thay_roi_no_cu_qua_662d31aa-3e7a-4072-a004-f6e4cb49089d.mp3" id="22_mpokr"]
@@ -37,8 +40,8 @@
 [ext_resource type="AudioStream" uid="uid://c7osu6blha31v" path="res://assets/sound/truong_lang/lang_nay_tung_song_duoc_la_nho_bien_gio_nguoi_c0b39845-4b23-4e04-b2ac-525816bb4a90.mp3" id="23_3xa1c"]
 [ext_resource type="Texture2D" uid="uid://cn3xvx5geohuw" path="res://assets/sprites/cat/fine_sand_material_2.png" id="23_sand_normal"]
 [ext_resource type="AudioStream" uid="uid://bn33onha1isd" path="res://assets/sound/player/con_se_co_gang_phu_giup_lang_minh_lam_tiep_nhung_fc456993-3b88-40cf-bfb4-f5763634499f.mp3" id="24_dr3lv"]
-[ext_resource type="Shader" uid="uid://ukgimt7je4i5" path="res://shaders/sand_shore_dunes.gdshader" id="24_sand_shader"]
-[ext_resource type="Script" uid="uid://dlu6erhv2a4np" path="res://scripts/game/sky_day_night.gd" id="25_sky_switcher"]
+[ext_resource type="Shader" uid="uid://bg7o2ramynds0" path="res://shaders/sand_shore_dunes.gdshader" id="24_sand_shader"]
+[ext_resource type="Script" uid="uid://cw5ih24qw4boy" path="res://scripts/game/sky_day_night.gd" id="25_sky_switcher"]
 [ext_resource type="PackedScene" uid="uid://skd8m35qhp3a" path="res://assets/sprites/village/cay01.glb" id="26_cay01"]
 [ext_resource type="PackedScene" uid="uid://ccp7fmhc8hs7r" path="res://assets/sprites/village/cay02.glb" id="27_cay02"]
 [ext_resource type="PackedScene" uid="uid://bjjuwljt1tvd0" path="res://assets/sprites/village/nha_truong_lang.glb" id="28_nha_truong_lang"]
@@ -266,7 +269,8 @@ transform = Transform3D(-2.8, 0, -4.2278825e-07, 0, 2.8, 0, 4.2278825e-07, 0, -2
 [node name="InteractionArea" type="Area3D" parent="Architecture/Quay3_Body/ThoMoc" unique_id=1590227638]
 script = ExtResource("20_npc")
 character_name = "Thợ mộc"
-dialogue_lines = Array[String](["Cháu muốn ta xây mới nhà văn hóa không? Đình làng mình cũ quá, ta cần sửa lại cho khang trang.", "Thợ mộc: Sẽ tốn khoảng 50 ngàn đồng để mua nguyên vật liệu tốt nhất đấy.", "Cháu: Dạ bác cứ tiến hành xây giúp cháu nhé, tiền để cháu lo!"])
+dialogue_lines = Array[String](["Cháu muốn ta xây mới nhà văn hóa sao?", "Sẽ tốn khoảng 20 ngàn đồng để mua nguyên vật liệu tốt nhất đấy.", "Cháu: Dạ bác cứ tiến hành xây giúp cháu nhé, tiền để cháu lo!"])
+dialogue_audio = Array[AudioStream]([ExtResource("12_3xa1c"), ExtResource("13_dr3lv"), ExtResource("14_itimw")])
 custom_action = 2
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay3_Body/ThoMoc/InteractionArea" unique_id=1098428605]

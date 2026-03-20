@@ -21,6 +21,9 @@ func _ready() -> void:
 	ferry_terminal.body_entered.connect(_on_ferry_terminal_entered)
 	print("[Village] Sẵn sàng ở chế độ FPP")
 	update_village_hall()
+	
+	if AudioManager != null and AudioManager.has_method("play_music"):
+		AudioManager.play_music(load("res://assets/sound/nhac_nen/nhacnen.mp3"))
 
 func update_village_hall() -> void:
 	if not GameData: return
@@ -62,8 +65,9 @@ func play_build_transition() -> void:
 	# Bước 2: Đổi model và chờ âm thanh xây dựng (2.5 giây)
 	tween.tween_callback(func():
 		update_village_hall()
-		# TODO: Chèn logic phát âm thanh xây dựng ở đây
-		# AudioManager.play_sfx(...) hoặc tự kéo file MP3 vào stream player
+		var build_sound = load("res://assets/sound/nhac_nen/xay_dung.mp3")
+		if build_sound:
+			AudioManager.play_sfx(build_sound)
 	)
 	tween.tween_interval(2.5)
 	

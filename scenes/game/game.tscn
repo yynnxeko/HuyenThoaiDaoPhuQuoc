@@ -7,10 +7,12 @@
 [ext_resource type="Script" uid="uid://pp6vnu6l40qj" path="res://scripts/game/ocean.gd" id="4_2a8rs"]
 [ext_resource type="Shader" uid="uid://nuqv6sbgi6a2" path="res://shaders/ocean.gdshader" id="4_ocean"]
 [ext_resource type="PackedScene" uid="uid://ctjcx86vojr3n" path="res://assets/sprites/boat1/boat1.glb" id="5_boat_model"]
+[ext_resource type="AudioStream" uid="uid://dmjvml0a1vc2y" path="res://assets/sound/nhac_nen/mua.mp3" id="5_vaxfo"]
 [ext_resource type="Script" uid="uid://b3vd0kenx4wvb" path="res://scenes/game/water_ani.gd" id="6_5i0tg"]
-[ext_resource type="Script" uid="uid://cwd4efpwtb4i0" path="res://scripts/weather/weather_manager.gd" id="8_weather"]
-[ext_resource type="Shader" uid="uid://cglif3rbd4yw8" path="res://shaders/rain_screen.gdshader" id="9_rain_screen"]
-[ext_resource type="Script" uid="uid://dlu6erhv2a4np" path="res://scripts/game/sky_day_night.gd" id="10_sky_switcher"]
+[ext_resource type="AudioStream" uid="uid://br87vcpxu1qyd" path="res://assets/sound/nhac_nen/gio.mp3" id="6_ftsea"]
+[ext_resource type="Script" uid="uid://raia4wnabqy6" path="res://scripts/weather/weather_manager.gd" id="8_weather"]
+[ext_resource type="Shader" uid="uid://de5gxsjfs15b8" path="res://shaders/rain_screen.gdshader" id="9_rain_screen"]
+[ext_resource type="Script" uid="uid://cw5ih24qw4boy" path="res://scripts/game/sky_day_night.gd" id="10_sky_switcher"]
 
 [sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_kp23o"]
 panorama = ExtResource("2_4j704")
@@ -246,13 +248,21 @@ transform = Transform3D(1, 0, 0, 0, 0.866, 0.5, 0, -0.5, 0.866, 0, 20, 10)
 light_color = Color(1, 0.95, 0.85, 1)
 shadow_enabled = true
 
-[node name="WeatherManager" type="Node" parent="." unique_id=2107362401 node_paths=PackedStringArray("ocean", "world_env", "sun", "rain_particles", "rain_screen")]
+[node name="WeatherManager" type="Node" parent="." unique_id=2107362401 node_paths=PackedStringArray("ocean", "world_env", "sun", "rain_particles", "rain_screen", "rain_sound", "wind_sound")]
 script = ExtResource("8_weather")
 ocean = NodePath("../Ocean")
 world_env = NodePath("../WorldEnvironment")
 sun = NodePath("../DirectionalLight3D")
 rain_particles = NodePath("../Camera3D/RainParticles")
 rain_screen = NodePath("../RainScreenLayer/RainScreen")
+rain_sound = NodePath("RainPlayer")
+wind_sound = NodePath("WindPlayer")
+
+[node name="RainPlayer" type="AudioStreamPlayer" parent="WeatherManager" unique_id=840339876]
+stream = ExtResource("5_vaxfo")
+
+[node name="WindPlayer" type="AudioStreamPlayer" parent="WeatherManager" unique_id=2049841884]
+stream = ExtResource("6_ftsea")
 
 [node name="Ocean" type="MeshInstance3D" parent="." unique_id=611099925]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0012412071, -0.007851601, 0.02890277)

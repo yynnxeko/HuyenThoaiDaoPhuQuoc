@@ -116,6 +116,9 @@ func _ready() -> void:
 	ocean_mesh = get_node_or_null("OceanMesh") 
 	ocean = ocean_mesh # Đỡ phải tìm 2 lần
 	
+	if AudioManager != null and AudioManager.has_method("play_music"):
+		AudioManager.play_music(load("res://assets/sound/nhac_nen/sea.mp3"))
+	
 	
 	if camera:
 		camera.current = true
