@@ -333,10 +333,10 @@ func _update_lighting(_delta: float) -> void:
 			t = 1.0
 		
 		var day_col := Color(0.95, 0.98, 1.0)
-		var night_col := Color(0.12, 0.16, 0.25)
+		var night_col := Color(0.18, 0.22, 0.32) # Sáng hơn xíu
 		e.ambient_light_color = day_col.lerp(night_col, t)
-		e.ambient_light_energy = lerpf(1.0, 0.18, t)
-		e.background_energy_multiplier = lerpf(1.0, 0.25, t)
+		e.ambient_light_energy = lerpf(1.0, 0.28, t) # Từ 0.18 lên 0.28
+		e.background_energy_multiplier = lerpf(1.0, 0.35, t) # Từ 0.25 lên 0.35
 	
 	# Update Sky colors from TimeWeather
 	if env and env.environment and env.environment.sky:

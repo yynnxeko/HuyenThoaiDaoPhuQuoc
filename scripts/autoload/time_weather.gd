@@ -8,7 +8,7 @@ signal weather_changed(new_weather: String)
 signal full_moon_started()
 signal full_moon_ended()
 
-# Time settings: 1 real second = 10 game minutes
+# Time settings: 1 real second = 10 game minute
 const GAME_MINUTES_PER_REAL_SECOND: float = 10.0
 
 # Current game time (0.0 - 24.0 hours)
@@ -47,7 +47,7 @@ const WATER_COLORS = {
 	"morning": Color(0.05, 0.45, 0.6, 0.8),
 	"afternoon": Color(0.08, 0.4, 0.55, 0.8),
 	"evening": Color(0.15, 0.25, 0.4, 0.85),
-	"night": Color(0.02, 0.08, 0.18, 0.9),
+	"night": Color(0.06, 0.15, 0.25, 0.9), # Tăng chút đỉnh cho sáng hơn dưới biển
 }
 
 
