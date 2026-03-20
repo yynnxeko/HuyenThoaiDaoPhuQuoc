@@ -44,6 +44,8 @@
 [ext_resource type="PackedScene" uid="uid://bjjuwljt1tvd0" path="res://assets/sprites/village/nha_truong_lang.glb" id="28_nha_truong_lang"]
 [ext_resource type="PackedScene" uid="uid://danjipv0ap3kr" path="res://assets/sprites/village/truong_lang.glb" id="29_truong_lang"]
 [ext_resource type="PackedScene" uid="uid://cem2042nd2juk" path="res://assets/sprites/village/vuon_rau03.glb" id="30_vuon_rau03"]
+[ext_resource type="Material" uid="uid://scmrn4x0moid" path="res://assets/sprites/grass/grass.tres" id="35_rp4k2"]
+[ext_resource type="PackedScene" uid="uid://b8r83ntkiesku" path="res://assets/sprites/terrain/terrain.glb" id="46_mpokr"]
 
 [sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_kttx1"]
 panorama = ExtResource("2_1ye51")
@@ -99,9 +101,6 @@ size = Vector3(1.5, 5, 1.5)
 
 [sub_resource type="BoxShape3D" id="VuonRauShape"]
 size = Vector3(5.6141357, 1.5, 5.079834)
-
-[sub_resource type="StandardMaterial3D" id="GroundMat"]
-albedo_color = Color(0.2, 0.4, 0.2, 1)
 
 [sub_resource type="PlaneMesh" id="GroundMesh"]
 size = Vector2(100, 160)
@@ -417,7 +416,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 20)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Ground" unique_id=857156854]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.007164955, 0.052661896, 0.0026111603)
-material_override = SubResource("GroundMat")
+material_override = ExtResource("35_rp4k2")
 mesh = SubResource("GroundMesh")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Ground" unique_id=1139756444]
@@ -517,3 +516,12 @@ text = "KHU DÂN CƯ
 Di chuyển đến khối màu xanh để ra biển"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="Sketchfab_Scene" parent="." unique_id=2097638601 instance=ExtResource("46_mpokr")]
+transform = Transform3D(-1.9948816, 0, 0.14299467, 0, 2, 0, -0.14299467, 0, -1.9948816, -3.9950018, 4.8445883, 38.391033)
+
+[node name="Sketchfab_Scene2" parent="." unique_id=2000444916 instance=ExtResource("46_mpokr")]
+transform = Transform3D(-2, 0, -1.7484555e-07, 0, 2, 0, 1.7484555e-07, 0, -2, -85.78374, 5.0968275, -3.6100788)
+
+[node name="Sketchfab_Scene3" parent="." unique_id=2118167606 instance=ExtResource("46_mpokr")]
+transform = Transform3D(-8.742278e-08, 0, 2, 0, 2, 0, -2, 0, -8.742278e-08, 92.59924, 6.301673, 9.865458)

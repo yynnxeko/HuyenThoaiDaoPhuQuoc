@@ -1,0 +1,11 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://scmrn4x0moid"]
+
+[ext_resource type="Texture2D" uid="uid://dewsoqotdhmyn" path="res://assets/sprites/grass/grass_with_dirt_patches_material_0.png" id="1_bjhe3"]
+[ext_resource type="Texture2D" uid="uid://byc8sunloxgdg" path="res://assets/sprites/grass/grass_with_dirt_patches_material_1.png" id="2_7bnlf"]
+[ext_resource type="Texture2D" uid="uid://bbjusmlgurse" path="res://assets/sprites/grass/grass_with_dirt_patches_material_2.png" id="3_b27el"]
+
+[resource]
+albedo_texture = ExtResource("1_bjhe3")
+roughness_texture = ExtResource("3_b27el")
+normal_enabled = true
+normal_texture = ExtResource("2_7bnlf")
