@@ -151,15 +151,23 @@ func _ready() -> void:
 	
 	_setup_moon_and_stars()
 	
+	# Đặt thuyền ở vùng Ven Bờ (coastal) khi bắt đầu
+	if boat:
+		var coastal_zone = ZoneDatabase.get_zone_by_id("coastal")
+		if coastal_zone:
+			var zone_center_2d = (coastal_zone.world_x_start + coastal_zone.world_x_end) / 2.0
+			boat.position.x = (zone_center_2d / 12000.0) * world_width - world_width / 2.0
+	
 	# Generate fishing spots
 	_generate_fishing_spots()
 	
 	# Spawn decorative fish
 	_spawn_decorative_fish()
 	
-	# Initial zone
+	# Initial zone (dùng cùng công thức với _check_zone)
 	if boat:
-		current_zone_info = ZoneDatabase.get_zone_at_position(boat.position.x * 60.0)
+		var world_x = (boat.position.x + world_width / 2.0) / world_width * 12000.0
+		current_zone_info = ZoneDatabase.get_zone_at_position(world_x)
 	
 	# Keyboard shortcut hints on HUD
 	if hud and hud.has_method("show_message"):
@@ -209,8 +217,8 @@ func _process_navigation(_delta: float) -> void:
 		# ========================================================
 		# ĐỘNG CƠ DỰ PHÒNG: ÉP THUYỀN CHẠY TRỰC TIẾP TỪ WORLD.GD
 		# ========================================================
-		var turn_speed = 0.5  # Tốc độ quay vô lăng (chỉnh to lên nếu muốn cua gắt)
-		var move_speed = 3.5 # Tốc độ chạy tới/lui (chỉnh to lên nếu muốn chạy nhanh)
+		var turn_speed = 0.8  # Tốc độ quay vô lăng (chỉnh to lên nếu muốn cua gắt)
+		var move_speed = 5 # Tốc độ chạy tới/lui (chỉnh to lên nếu muốn chạy nhanh)
 		
 		# 1. Ép thuyền quay trái/phải
 		if steer_input != 0.0:
@@ -319,8 +327,8 @@ func _update_lighting(_delta: float) -> void:
 			sun_light.light_color = Color(1.0, 0.6, 0.3)
 			sun_light.light_energy = 0.7
 		"night":
-			sun_light.light_color = Color(0.3, 0.35, 0.6)
-			sun_light.light_energy = 0.2
+			sun_light.light_color = Color(0.4, 0.45, 0.7)
+			sun_light.light_energy = 0.5
 
 	# Make night actually dark even with HDRI sky:
 	# - Force ambient from COLOR (not SKY), so we can control it.
@@ -336,10 +344,10 @@ func _update_lighting(_delta: float) -> void:
 			t = 1.0
 		
 		var day_col := Color(0.95, 0.98, 1.0)
-		var night_col := Color(0.12, 0.16, 0.25)
+		var night_col := Color(0.18, 0.22, 0.32) # Sáng hơn xíu
 		e.ambient_light_color = day_col.lerp(night_col, t)
-		e.ambient_light_energy = lerpf(1.0, 0.18, t)
-		e.background_energy_multiplier = lerpf(1.0, 0.25, t)
+		e.ambient_light_energy = lerpf(1.0, 0.28, t) # Từ 0.18 lên 0.28
+		e.background_energy_multiplier = lerpf(1.0, 0.35, t) # Từ 0.25 lên 0.35
 	
 	# Update Sky colors from TimeWeather
 	if env and env.environment and env.environment.sky:
@@ -453,6 +461,7 @@ func _check_zone() -> void:
 	
 	if new_zone and (current_zone_info == null or new_zone.id != current_zone_info.id):
 		current_zone_info = new_zone
+		GameData.current_zone = new_zone.id
 		AudioManager.play_zone_enter()
 		if hud and hud.has_method("show_zone_name"):
 			hud.show_zone_name(current_zone_info.name_vn)
@@ -470,18 +479,31 @@ func _sync_water_level() -> void:
 
 
 func _generate_fishing_spots() -> void:
-	# Place fishing spot markers in 3D
-	var spot_x_positions = [-80, -55, -30, -10, 10, 30, 50, 70, 85]
-	for xpos in spot_x_positions:
-		var world_x_2d = (float(xpos) + world_width / 2.0) / world_width * 12000.0
-		fishing_spots.append({
-			"x3d": float(xpos),
-			"x2d": world_x_2d,
-			"zone": ZoneDatabase.get_zone_at_position(world_x_2d).id,
-			"glow_time": randf() * TAU,
-		})
-		# Create visual marker (glowing sphere)
-		_create_spot_marker(Vector3(float(xpos), 0.05, 0))
+	# Tạo điểm câu phân bố đều trên từng zone
+	var zones = ZoneDatabase.get_all_zones()
+	var spots_per_zone = 3  # Mỗi zone có 3 điểm câu
+	
+	for zone in zones:
+		# Convert zone world_x range (2D: 0-12000) sang tọa độ 3D
+		var x3d_start = (zone.world_x_start / 12000.0) * world_width - world_width / 2.0
+		var x3d_end = (zone.world_x_end / 12000.0) * world_width - world_width / 2.0
+		var zone_width_3d = x3d_end - x3d_start
+		
+		for i in range(spots_per_zone):
+			# Chia đều điểm câu trong zone, có random nhẹ
+			var t = (float(i) + 0.5) / float(spots_per_zone)
+			var xpos = x3d_start + t * zone_width_3d + randf_range(-zone_width_3d * 0.1, zone_width_3d * 0.1)
+			xpos = clampf(xpos, x3d_start + 2.0, x3d_end - 2.0)
+			
+			var world_x_2d = (xpos + world_width / 2.0) / world_width * 12000.0
+			fishing_spots.append({
+				"x3d": xpos,
+				"x2d": world_x_2d,
+				"zone": zone.id,
+				"glow_time": randf() * TAU,
+			})
+			# Create visual marker (glowing sphere)
+			_create_spot_marker(Vector3(xpos, 0.05, 0))
 
 
 func _create_spot_marker(pos: Vector3) -> void:
@@ -516,8 +538,8 @@ func _create_underwater_plane() -> void:
 	var st = SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	
-	var size = Vector2(400, 80)
-	var subdiv = Vector2i(80, 20)
+	var size = Vector2(600, 200)
+	var subdiv = Vector2i(120, 40)
 	var step_x = size.x / subdiv.x
 	var step_z = size.y / subdiv.y
 	
@@ -607,7 +629,7 @@ func _spawn_chunk(idx: int) -> void:
 	spawned_chunks[idx] = chunk_node
 	
 	var profile = _get_zone_profile()
-	var count_per_chunk = 8 # Số lượng cố định mỗi khối để ổn định hiệu năng
+	var count_per_chunk = 40 # Số lượng mỗi khối (gấp đôi)
 	var weights: Dictionary = profile.get("weights", {})
 	
 	var start_x = idx * CHUNK_SIZE
@@ -625,7 +647,7 @@ func _spawn_chunk(idx: int) -> void:
 			_setup_node_animation(p, randf_range(0.8, 1.2))
 		
 		var spawn_x = randf_range(start_x, end_x)
-		var spawn_z = randf_range(-25.0, 25.0)
+		var spawn_z = randf_range(-world_depth / 2.0, world_depth / 2.0)
 		var noise_y = seabed_noise.get_noise_2d(spawn_x, spawn_z) * 5.0
 		var ground_y = (water_level_y - 12.0) + noise_y
 		
@@ -661,35 +683,41 @@ func _get_zone_profile() -> Dictionary:
 	
 	# Định nghĩa base weights cho mọi khu vực để đảm bảo loại nào cũng có thể xuất hiện
 	var weights = {
-		"seaweed": 0.2,
-		"rock": 0.2,
-		"coral": 0.1,
-		"coral_main": 0.1,
-		"coral_piece": 0.1,
-		"starfish": 0.1,
-		"deep_coral": 0.05
+		"seaweed": 0.4,
+		"rock": 0.8,
+		"coral": 0.6,
+		"coral_main": 0.5,
+		"coral_piece": 0.5,
+		"starfish": 0.2,
+		"deep_coral": 0.3
 	}
-	var count = 30
+	var count = 100
 	
 	# Tinh chỉnh theo khu vực
 	if zone_id.find("coast") != -1 or zone_id.find("shore") != -1 or zone_id.find("coastal") != -1:
-		count = 35
-		weights["seaweed"] = 0.5
-		weights["starfish"] = 0.2
+		count = 120
+		weights["seaweed"] = 0.8
+		weights["starfish"] = 0.4
+		weights["rock"] = 1.0
+		weights["coral"] = 0.6
 	elif zone_id.find("reef") != -1:
-		count = 45
-		weights["coral_main"] = 0.4
-		weights["coral"] = 0.3
-		weights["starfish"] = 0.1
+		count = 140
+		weights["coral_main"] = 1.4
+		weights["coral"] = 1.2
+		weights["coral_piece"] = 1.0
+		weights["starfish"] = 0.3
+		weights["rock"] = 0.8
 	elif zone_id.find("offshore") != -1 or zone_id.find("open") != -1:
-		count = 32
-		weights["coral_piece"] = 0.3
-		weights["starfish"] = 0.2
-		weights["rock"] = 0.3
+		count = 110
+		weights["coral_piece"] = 1.0
+		weights["starfish"] = 0.4
+		weights["rock"] = 1.0
+		weights["seaweed"] = 0.3
 	elif zone_id.find("abyss") != -1 or zone_id.find("deep") != -1:
-		count = 25
-		weights["deep_coral"] = 0.4
-		weights["rock"] = 0.4
+		count = 90
+		weights["deep_coral"] = 1.4
+		weights["rock"] = 1.2
+		weights["coral_piece"] = 0.6
 	
 	return {"count": count, "weights": weights}
 
@@ -778,11 +806,16 @@ func _spawn_bubble() -> void:
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	b.material_override = mat
 	add_child(b)
+	var bx = 0.0
+	var bz = 0.0
+	if boat:
+		bx = boat.position.x
+		bz = boat.position.z
 
 	b.position = Vector3(
-		randf_range(-10.0, 10.0),
+		bx + randf_range(-15.0, 15.0),
 		water_level_y - 5.0,
-		randf_range(-5.0, 5.0)
+		bz + randf_range(-10.0, 10.0)
 	)
 
 	bubble_nodes.append({
@@ -1318,11 +1351,16 @@ func _on_zone_selected(zone_id: String) -> void:
 		var x_3d = (zone_center_2d / 12000.0) * world_width - world_width / 2.0
 		boat.position.x = x_3d
 		current_zone_info = zone
+		GameData.current_zone = zone_id
 		
-		# ĐÃ SỬA: Ép Camera dịch chuyển tức thì theo tàu, chống lỗi "mất tàu"
+		# Ép Camera dịch chuyển tức thì theo tàu, chống lỗi "mất tàu"
 		if camera:
 			var forward = boat.global_basis.x.normalized()
 			camera.position = boat.position - forward * 8.0 + Vector3(0, 3.5, 0)
+		
+		# Tái tạo môi trường cho zone mới
+		_respawn_underwater_props()
+		_spawn_decorative_fish()
 
 
 func _setup_node_animation(node: Node, anim_speed: float = 1.0) -> void:

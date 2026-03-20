@@ -134,7 +134,7 @@ static func _init_database() -> void:
 		FishType.new(
 			"ca_map", "Cá Mập Mako", "Mako Shark", "epic",
 			250, 1.5, 4.0, 160.0, 0.8,
-			["deep_sea"] as Array[String],
+			["reef", "open_sea", "deep_sea"] as Array[String],
 			["any"] as Array[String],
 			["any"] as Array[String],
 			"", Color(0.3, 0.4, 0.6),
@@ -232,6 +232,6 @@ static func get_spawn_weight(rarity: String) -> float:
 		"common": return 50.0
 		"uncommon": return 25.0
 		"rare": return 12.0
-		"epic": return 5.0
+		"epic": return 15.0
 		"legendary": return 1.0
 	return 50.0

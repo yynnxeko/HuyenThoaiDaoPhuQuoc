@@ -28,7 +28,7 @@ var bait_level: int = 0
 var line_level: int = 0
 
 # Unlocked zones
-var unlocked_zones: Array[String] = ["coastal"]
+var unlocked_zones: Array[String] = ["coastal", "reef", "open_sea", "deep_sea", "abyss"]
 
 # Current zone
 var current_zone: String = "coastal"
@@ -159,7 +159,8 @@ func sell_fish(fish_id: String, count: int, price_per: int) -> void:
 
 
 func is_zone_unlocked(zone_id: String) -> bool:
-	return zone_id in unlocked_zones
+	# Tất cả zone đều mở khóa sẵn
+	return true
 
 
 func save_game() -> void:
@@ -214,7 +215,7 @@ func reset_game() -> void:
 	boat_level = 0
 	bait_level = 0
 	line_level = 0
-	unlocked_zones = ["coastal"]
+	unlocked_zones = ["coastal", "reef", "open_sea", "deep_sea", "abyss"]
 	current_zone = "coastal"
 	is_village_hall_upgraded = false
 	save_game()

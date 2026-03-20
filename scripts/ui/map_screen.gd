@@ -81,8 +81,6 @@ func _draw() -> void:
 				draw_string(font, Vector2(card_x + 15, 545), "Dang o day", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.3, 1.0, 0.5))
 			else:
 				draw_string(font, Vector2(card_x + 15, 545), "Nhan de di den", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.5, 0.8, 1.0))
-		else:
-			draw_string(font, Vector2(card_x + 15, 545), "Can thuyen Lv." + str(zone.unlock_boat_level + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.8, 0.4, 0.3))
 	
 	draw_line(Vector2(220, 720), Vector2(1700, 720), Color(0.3, 0.3, 0.4, 0.5), 1.0)
 	draw_string(font, Vector2(240, 755), "Trang bi hien tai:", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(0.8, 0.8, 0.9))
