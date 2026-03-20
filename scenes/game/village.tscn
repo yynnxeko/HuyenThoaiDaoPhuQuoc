@@ -47,6 +47,7 @@
 
 [sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_kttx1"]
 panorama = ExtResource("2_1ye51")
+energy_multiplier = 0.36
 
 [sub_resource type="Sky" id="Sky_v"]
 sky_material = SubResource("PanoramaSkyMaterial_kttx1")
@@ -266,8 +267,8 @@ transform = Transform3D(-2.8, 0, -4.2278825e-07, 0, 2.8, 0, 4.2278825e-07, 0, -2
 [node name="InteractionArea" type="Area3D" parent="Architecture/Quay3_Body/ThoMoc" unique_id=1590227638]
 script = ExtResource("20_npc")
 character_name = "Thợ mộc"
-custom_action = 2
 dialogue_lines = Array[String](["Cháu muốn ta xây mới nhà văn hóa không? Đình làng mình cũ quá, ta cần sửa lại cho khang trang.", "Thợ mộc: Sẽ tốn khoảng 50 ngàn đồng để mua nguyên vật liệu tốt nhất đấy.", "Cháu: Dạ bác cứ tiến hành xây giúp cháu nhé, tiền để cháu lo!"])
+custom_action = 2
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/Quay3_Body/ThoMoc/InteractionArea" unique_id=1098428605]
 shape = SubResource("InteractionShape")
