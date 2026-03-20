@@ -47,6 +47,7 @@
 [ext_resource type="PackedScene" uid="uid://bjjuwljt1tvd0" path="res://assets/sprites/village/nha_truong_lang.glb" id="28_nha_truong_lang"]
 [ext_resource type="PackedScene" uid="uid://danjipv0ap3kr" path="res://assets/sprites/village/truong_lang.glb" id="29_truong_lang"]
 [ext_resource type="PackedScene" uid="uid://cem2042nd2juk" path="res://assets/sprites/village/vuon_rau03.glb" id="30_vuon_rau03"]
+[ext_resource type="PackedScene" uid="uid://7a4i8f7xpg7x" path="res://assets/sprites/village/cot_co.glb" id="31_cot_co"]
 
 [sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_kttx1"]
 panorama = ExtResource("2_1ye51")
@@ -96,6 +97,9 @@ size = Vector3(5.5579834, 7, 4.835022)
 [sub_resource type="CapsuleShape3D" id="PlayerShape"]
 radius = 0.4
 height = 1.8
+
+[sub_resource type="CylinderShape3D" id="CotCoShape"]
+height = 8.0
 
 [sub_resource type="BoxShape3D" id="CayShape"]
 size = Vector3(1.5, 5, 1.5)
@@ -362,6 +366,16 @@ shape = SubResource("InteractionShape")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/TruongLang_Body" unique_id=505050705]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.8976021, 1, -8.571966)
 shape = SubResource("PlayerShape")
+
+[node name="CotCo_Body" type="StaticBody3D" parent="Architecture" unique_id=674193856]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, -10)
+
+[node name="CotCo" parent="Architecture/CotCo_Body" unique_id=778119078 instance=ExtResource("31_cot_co")]
+transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, 0, 0, 15.697128)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Architecture/CotCo_Body" unique_id=888786617]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, 0)
+shape = SubResource("CotCoShape")
 
 [node name="Nature" type="Node3D" parent="." unique_id=2020202]
 
