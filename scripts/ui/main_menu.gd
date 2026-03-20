@@ -25,6 +25,20 @@ func _ready() -> void:
 	get_viewport().gui_disable_input = false
 	if ui_root:
 		ui_root.mouse_filter = Control.MOUSE_FILTER_PASS
+		
+		# --- Thêm ảnh nền tĩnh (Static Background) ---
+		var bg = TextureRect.new()
+		bg.texture = load("res://assets/sprites/menu_background.png")
+		if bg.texture == null: # Dự phòng nếu không có file này thì xài ảnh mặc định khác
+			bg.texture = load("res://assets/sprites/under-sea/4e153ad6124e9c10c55f.jpg")
+		bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+		bg.modulate = Color(0.8, 0.8, 0.9) # Làm hơi dịu màu lại để làm nổi nút bấm
+		ui_root.add_child(bg)
+		ui_root.move_child(bg, 0)
+		# ----------------------------------------------
+		
 	print("[Menu] ready | ui_root=", ui_root, " gui_disable_input=", get_viewport().gui_disable_input, " mouse_mode=", Input.get_mouse_mode())
 
 	if btn_start == null or btn_continue == null or btn_quit == null:

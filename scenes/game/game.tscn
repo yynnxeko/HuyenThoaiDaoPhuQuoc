@@ -40,9 +40,9 @@ shader_parameter/wind_direction = Vector2(1, 0)
 shader_parameter/time_offset = 0.0
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_ocean"]
-size = Vector2(300, 300)
-subdivide_width = 150
-subdivide_depth = 150
+size = Vector2(800, 800)
+subdivide_width = 200
+subdivide_depth = 200
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_2a8rs"]
 size = Vector3(3.177, 0.15, 1.2)

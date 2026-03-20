@@ -48,6 +48,8 @@ var steer_input: float = 0.0
 var throttle_input: float = 0.0
 var _steer_smoothed: float = 0.0
 
+var boat_light: OmniLight3D = null
+
 func _ready() -> void:
 	print("BOAT READY")
 
@@ -70,6 +72,28 @@ func _ready() -> void:
 
 	can_sleep = false
 	sleeping = false
+
+	# ===== NIGHT LIGHT =====
+	boat_light = OmniLight3D.new()
+	boat_light.name = "NightLight"
+	boat_light.omni_range = 25.0
+	boat_light.light_color = Color(1.0, 0.95, 0.8)
+	boat_light.light_energy = 2.5
+	boat_light.shadow_enabled = true
+	# Đặt đèn ở trước mũi tàu và hơi cao lên
+	boat_light.position = Vector3(boat_length * 0.4, 2.5, 0.0) 
+	add_child(boat_light)
+
+	if TimeWeather and TimeWeather.has_signal("period_changed"):
+		TimeWeather.period_changed.connect(_on_period_changed)
+	_update_light_visibility(TimeWeather.get_period_name())
+
+func _on_period_changed(period_name: String) -> void:
+	_update_light_visibility(period_name)
+
+func _update_light_visibility(period_name: String) -> void:
+	if boat_light:
+		boat_light.visible = (period_name in ["evening", "night", "dawn"])
 
 
 func set_input(p_steer: float, p_throttle: float) -> void:
